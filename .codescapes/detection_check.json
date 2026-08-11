@@ -1,0 +1,59 @@
+{
+  "sourceFile": "detection_check.py",
+  "parsedAt": "2026-08-11T02:02:02.322Z",
+  "classes": [
+    {
+      "Classname": "<detection_check>",
+      "Methods": [
+        {
+          "name": "normalize",
+          "parameters": [
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "check_greenhouse",
+          "parameters": [
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "check_lever",
+          "parameters": [
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "<module_code_1>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_2>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "if_statement"
+          ]
+        }
+      ],
+      "Loc": 32,
+      "Type": "module",
+      "Extends": null,
+      "Implements": [
+        "requests"
+      ],
+      "Fields": [],
+      "Constructors": []
+    }
+  ]
+}

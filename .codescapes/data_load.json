@@ -1,0 +1,75 @@
+{
+  "sourceFile": "data_load.py",
+  "parsedAt": "2026-08-11T01:38:36.056Z",
+  "classes": [
+    {
+      "Classname": "<data_load>",
+      "Methods": [
+        {
+          "name": "<module_code_1>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_2>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_3>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_4>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_5>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "if_statement"
+          ]
+        }
+      ],
+      "Loc": 20,
+      "Type": "module",
+      "Extends": null,
+      "Implements": [
+        "requests"
+      ],
+      "Fields": [
+        {
+          "name": "board_token",
+          "type": "unknown",
+          "modifiers": []
+        },
+        {
+          "name": "url",
+          "type": "unknown",
+          "modifiers": []
+        },
+        {
+          "name": "response",
+          "type": "unknown",
+          "modifiers": []
+        }
+      ],
+      "Constructors": []
+    }
+  ]
+}
