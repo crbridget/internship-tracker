@@ -1,0 +1,103 @@
+{
+  "sourceFile": "write_to_database.py",
+  "parsedAt": "2026-08-12T00:27:48.360Z",
+  "classes": [
+    {
+      "Classname": "<write_to_database>",
+      "Methods": [
+        {
+          "name": "company_dict_to_row",
+          "parameters": [
+            "unknown",
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "insert_company",
+          "parameters": [
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "update_company_status",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "get_all_active_companies",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "insert_job_posting",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "update_job_posting",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "get_existing_postings_for_company",
+          "parameters": [
+            "unknown"
+          ],
+          "returnType": "None",
+          "modifiers": []
+        },
+        {
+          "name": "<module_code_1>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "expression_statement"
+          ]
+        },
+        {
+          "name": "<module_code_2>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "if_statement"
+          ]
+        }
+      ],
+      "Loc": 53,
+      "Type": "module",
+      "Extends": null,
+      "Implements": [
+        "supabase",
+        "os",
+        "dotenv",
+        "datetime"
+      ],
+      "Fields": [
+        {
+          "name": "url",
+          "type": "unknown",
+          "modifiers": []
+        },
+        {
+          "name": "key",
+          "type": "unknown",
+          "modifiers": []
+        },
+        {
+          "name": "supabase",
+          "type": "unknown",
+          "modifiers": []
+        }
+      ],
+      "Constructors": []
+    }
+  ]
+}
