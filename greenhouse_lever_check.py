@@ -25,6 +25,8 @@ def check_greenhouse(company_name, board_token):
     response = requests.get(url)
     if response.status_code == 200:
         print(f"Success! {board_token} uses Greenhouse")
+        data = response.json()
+        print(data)
         companies[company_name] = {
             'token': board_token,
             'source': 'greenhouse',
@@ -32,7 +34,6 @@ def check_greenhouse(company_name, board_token):
             'status': 'active'
         }
         return True
-        
 
     else:
         print(f"Failed. {board_token} does not use Greenhouse")
