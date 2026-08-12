@@ -1,6 +1,6 @@
 {
   "sourceFile": "write_to_database.py",
-  "parsedAt": "2026-08-12T00:27:48.360Z",
+  "parsedAt": "2026-08-12T22:28:25.746Z",
   "classes": [
     {
       "Classname": "<write_to_database>",
@@ -15,7 +15,7 @@
           "modifiers": []
         },
         {
-          "name": "insert_company",
+          "name": "upsert_company",
           "parameters": [
             "unknown"
           ],
@@ -24,7 +24,12 @@
         },
         {
           "name": "update_company_status",
-          "parameters": [],
+          "parameters": [
+            "unknown",
+            "unknown",
+            "unknown",
+            "unknown"
+          ],
           "returnType": "None",
           "modifiers": []
         },
@@ -35,14 +40,10 @@
           "modifiers": []
         },
         {
-          "name": "insert_job_posting",
-          "parameters": [],
-          "returnType": "None",
-          "modifiers": []
-        },
-        {
-          "name": "update_job_posting",
-          "parameters": [],
+          "name": "upsert_job_posting",
+          "parameters": [
+            "unknown"
+          ],
           "returnType": "None",
           "modifiers": []
         },
@@ -67,11 +68,19 @@
           "parameters": [],
           "returnType": "None",
           "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_3>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
             "if_statement"
           ]
         }
       ],
-      "Loc": 53,
+      "Loc": 108,
       "Type": "module",
       "Extends": null,
       "Implements": [
