@@ -1,0 +1,78 @@
+{
+  "sourceFile": "poll_jobs.py",
+  "parsedAt": "2026-08-12T22:42:59.465Z",
+  "classes": [
+    {
+      "Classname": "<poll_jobs>",
+      "Methods": [
+        {
+          "name": "<module_code_1>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_2>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_3>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_4>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_5>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_6>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        },
+        {
+          "name": "<module_code_7>",
+          "parameters": [],
+          "returnType": "None",
+          "modifiers": [
+            "comment"
+          ]
+        }
+      ],
+      "Loc": 20,
+      "Type": "module",
+      "Extends": null,
+      "Implements": [
+        "requests",
+        "datetime",
+        "time",
+        "write_to_database"
+      ],
+      "Fields": [],
+      "Constructors": []
+    }
+  ]
+}
