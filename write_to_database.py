@@ -62,6 +62,17 @@ def get_existing_postings_for_company(company_id):
     response = supabase.table('job_postings').select('*').eq('company_id', company_id).eq('status', 'open').execute()
     return response.data
 
+def get_all_open_postings():
+    """Fetch all open job postings, across all companies"""
+    response = supabase.table('job_postings').select('*').eq('status', 'open').execute()
+    return response.data
+
+def update_posting_relevance_score(posting_id, score):
+    """Update the relevance_score for a specific posting, by its id"""
+    response = supabase.table('job_postings').update({
+        'relevance_score': score
+    }).eq('id', posting_id).execute()
+    return response
 
 
 ## TESTING
