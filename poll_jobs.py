@@ -1,19 +1,86 @@
-import requests
-from datetime import datetime 
-import time 
 import write_to_database
+import greenhouse_lever_check
+from datetime import datetime
 
 
-# get list of companies to poll
+def normalize_greenhouse_posting(posting):
+    """Map a raw Greenhouse job dict to job_posting schema."""
+    return {
+        'external_job_id': str(posting['id']),
+        'title': posting.get('title'),
+        'location': posting.get('location', {}).get('name'),
+        'apply_url': posting.get('absolute_url'),
+        'first_published': posting.get('first_published'),
+        'source_updated_at': posting.get('updated_at'),
+        'status': 'open'
+    }
 
-# for each company, check if greenhouse or lever, make API call
 
-# on success - extract job postings
+def normalize_lever_posting(posting):
+    """Map a raw Lever job dict to job_posting schema."""
+    return {
+        'external_job_id': str(posting['id']),
+        'title': posting.get('text'),
+        'location': posting.get('categories', {}).get('location'),
+        'apply_url': posting.get('hostedUrl'),
+        'first_published': None,  # lever doesn't provide this
+        'source_updated_at': None,
+        'status': 'open'
+    }
 
-# normalize output
 
-# compare what is already stored to fresh api call response
-# any IDs not present that were before: mark as closed
+def poll_company(company):
+    """Poll one company's board, upsert postings, detect closures, update status."""
+    company_id = company['id']
+    source_token = company['source_token']
+    source = company['source']
+    checked_at = datetime.now()
 
-# for each posting returned -> map source fields to schema columns
+    # 1. Make the API call using the already-known source
+    if source == 'greenhouse':
+        raw_postings = greenhouse_lever_check.check_greenhouse(source_token)
+        normalize_fn = normalize_greenhouse_posting
+    elif source == 'lever':
+        raw_postings = greenhouse_lever_check.check_lever(source_token)
+        normalize_fn = normalize_lever_posting
+    else:
+        print(f"Unknown source for {company['company_name']}, skipping")
+        return
 
+    # 2. Handle failure, increment consecutive_failures, mark inactive if 3 or more errors
+    if raw_postings is None:
+        new_failures = company.get('consecutive_failures', 0) + 1
+        new_status = 'inactive' if new_failures >= 3 else 'active'
+        write_to_database.update_company_status(source_token, new_status, new_failures, checked_at)
+        print(f"{company['company_name']}: check failed ({new_failures} consecutive failures)")
+        return
+
+    # 3. if success: reset failures, confirm active
+    write_to_database.update_company_status(source_token, 'active', 0, checked_at)
+
+    # 4. Get what's currently marked open in the database, for diffing
+    existing_postings = write_to_database.get_existing_postings_for_company(company_id)
+    existing_ids = {p['external_job_id'] for p in existing_postings}
+
+    # 5. Upsert every posting from the fresh API response
+    fresh_ids = set()
+    for raw_posting in raw_postings:
+        row = normalize_fn(raw_posting)
+        row['company_id'] = company_id
+        fresh_ids.add(row['external_job_id'])
+        write_to_database.upsert_job_posting(row)
+
+    # 6. Anything that was open before but missing now has closed
+    closed_ids = existing_ids - fresh_ids
+    for job_id in closed_ids:
+        write_to_database.supabase.table('job_postings').update({
+            'status': 'closed'
+        }).eq('company_id', company_id).eq('external_job_id', job_id).execute()
+
+    print(f"{company['company_name']}: {len(fresh_ids)} open, {len(closed_ids)} newly closed")
+
+
+if __name__ == "__main__":
+    companies = write_to_database.get_all_active_companies()
+    for company in companies:
+        poll_company(company)

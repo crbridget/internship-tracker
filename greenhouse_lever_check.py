@@ -3,7 +3,6 @@
 import requests
 from datetime import datetime
 
-companies = {}
 now = datetime.now()
 
 def normalize(company_name):
@@ -14,58 +13,45 @@ def normalize(company_name):
     """
     return company_name.lower().replace(' ', '')
     
-def check_greenhouse(company_name, board_token):
+def check_greenhouse(board_token):
     """ 
     Make an API call to greenhouse job board using 
     the normalized comapny name as the board token.
-    input: company_name (str), board_token(str)
-    output: success or fail message (str), True or False (boolean)
+    input: company_name (str), board_token (str)
+    output: list of job postings (list) if found, otherwise None
     """
     url = f'https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs'
     response = requests.get(url)
     if response.status_code == 200:
-        print(f"Success! {board_token} uses Greenhouse")
-        data = response.json()
-        print(data)
-        companies[company_name] = {
-            'token': board_token,
-            'source': 'greenhouse',
-            'verified_date': now,
-            'status': 'active'
-        }
-        return True
+        return response.json()['jobs']
 
     else:
-        print(f"Failed. {board_token} does not use Greenhouse")
-        return False
+        return None
 
-def check_lever(company_name, board_token):
+def check_lever(board_token):
     """ 
     Make an API call to lever job board using 
     the normalized comapny name as the board token.
-    input: company_name (str), board_token(str)
-    output: success or fail message (str), True or False (boolean)
+    input: company_name (str), board_token (str)
+    output: list of job postings (list) if found, otherwise None    
     """
     url = f'https://api.lever.co/v0/postings/{board_token}?mode=json'
     response = requests.get(url)
     if response.status_code == 200:
-        print(f"Success! {board_token} uses Lever")
-        companies[company_name] = {
-            'token': board_token,
-            'source': 'greenhouse',
-            'verified_date': now,
-            'status': 'active'
-        }
-        return True
+        return response.json()
     else:
-        print(f"Failed. {board_token} does not use Lever")
-        return False
+        return None
     
 
 if __name__ == "__main__":
     company = input("Enter your company: ")
     token = normalize(company)
-    check_greenhouse(company, token)
-    check_lever(company, token)
-    print(companies)
+    
+    gh_result = check_greenhouse(token)
+    if gh_result:
+        print(f"Found on Greenhouse: {len(gh_result)} postings")
+    
+    lever_result = check_lever(token)
+    if lever_result:
+        print(f"Found on Lever: {len(lever_result)} postings")
 
