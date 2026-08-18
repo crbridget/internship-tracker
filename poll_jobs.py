@@ -62,20 +62,19 @@ def poll_company(company):
     existing_postings = write_to_database.get_existing_postings_for_company(company_id)
     existing_ids = {p['external_job_id'] for p in existing_postings}
 
-    # 5. Upsert every posting from the fresh API response
+    # 5. Upsert every posting from the fresh API response, in one batched call
+    rows = []
     fresh_ids = set()
     for raw_posting in raw_postings:
         row = normalize_fn(raw_posting)
         row['company_id'] = company_id
         fresh_ids.add(row['external_job_id'])
-        write_to_database.upsert_job_posting(row)
+        rows.append(row)
+    write_to_database.upsert_job_postings(rows)
 
     # 6. Anything that was open before but missing now has closed
     closed_ids = existing_ids - fresh_ids
-    for job_id in closed_ids:
-        write_to_database.supabase.table('job_postings').update({
-            'status': 'closed'
-        }).eq('company_id', company_id).eq('external_job_id', job_id).execute()
+    write_to_database.close_postings(company_id, closed_ids)
 
     print(f"{company['company_name']}: {len(fresh_ids)} open, {len(closed_ids)} newly closed")
 

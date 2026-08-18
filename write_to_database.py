@@ -84,6 +84,43 @@ def upsert_job_posting(job_posting):
     return response
 
 
+def upsert_job_postings(job_postings, chunk_size=500):
+    """
+    Upsert many postings in one request per chunk.
+
+    Replaces a loop of upsert_job_posting(). Each of those was its own HTTPS
+    round-trip, so a full poll of ~10.7k postings meant ~10.7k requests.
+
+    Timestamp handling mirrors upsert_job_posting exactly, so this is a pure
+    performance change — including the first_seen_at overwrite. See the note in
+    upsert_job_posting.
+    """
+    if not job_postings:
+        return
+
+    now = datetime.now().isoformat()
+    for posting in job_postings:
+        posting['last_seen_at'] = now
+        posting.setdefault('first_seen_at', now)
+
+    for i in range(0, len(job_postings), chunk_size):
+        supabase.table('job_postings').upsert(
+            job_postings[i:i + chunk_size],
+            on_conflict='company_id,external_job_id',
+        ).execute()
+
+
+def close_postings(company_id, external_job_ids):
+    """Mark a batch of postings closed in a single request."""
+    if not external_job_ids:
+        return
+
+    supabase.table('job_postings').update({'status': 'closed'}) \
+        .eq('company_id', company_id) \
+        .in_('external_job_id', list(external_job_ids)) \
+        .execute()
+
+
 def get_existing_postings_for_company(company_id):
     """ Fetch all open job postings for a specific company"""
     return _fetch_all_rows('job_postings', {'company_id': company_id, 'status': 'open'})
