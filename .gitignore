@@ -5,4 +5,4 @@ __pycache__/
 *.csv
 data/
 venv/
-.venv/
+.venv/poll_log.txt
