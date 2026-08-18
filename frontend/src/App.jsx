@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import './App.css'
 
-// 127.0.0.1 rather than localhost: on macOS, localhost can resolve to ::1,
-// where AirPlay Receiver is listening on :5000 and answers with a 403.
-const API = 'http://127.0.0.1:5000'
+// Set VITE_API_URL in the deploy environment to point at the hosted Flask app.
+// Falls back to local dev: 127.0.0.1 rather than localhost because on macOS
+// localhost can resolve to ::1, where AirPlay Receiver is listening on :5000
+// and answers with a 403.
+const API = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
 
 // Mirrors is_internship() in score_relevance.py. Duplicated here only because
 // there is no endpoint that returns internships directly — /postings hands back
