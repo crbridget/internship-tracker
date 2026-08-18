@@ -5,4 +5,7 @@ __pycache__/
 *.csv
 data/
 venv/
-.venv/poll_log.txt
+.venv/
+
+# polling output, grows without bound (80MB and counting)
+poll_log.txt
