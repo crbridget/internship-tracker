@@ -12,13 +12,16 @@ key = os.environ.get("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 
-def _fetch_all_rows(table, filters, page_size=1000):
+def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
     """
     Fetch every matching row, a page at a time.
 
     PostgREST caps a single response at 1000 rows, so an unpaged select
     silently truncates once a table grows past that — no error, just
     missing data. Keep requesting until a short page comes back.
+
+    or_filter is a raw PostgREST `or` expression, applied on top of the
+    equality filters.
     """
     rows = []
     offset = 0
@@ -26,6 +29,8 @@ def _fetch_all_rows(table, filters, page_size=1000):
         query = supabase.table(table).select('*')
         for column, value in filters.items():
             query = query.eq(column, value)
+        if or_filter:
+            query = query.or_(or_filter)
 
         batch = query.range(offset, offset + page_size - 1).execute().data
         rows.extend(batch)
@@ -86,6 +91,25 @@ def get_existing_postings_for_company(company_id):
 def get_all_open_postings():
     """Fetch all open job postings, across all companies"""
     return _fetch_all_rows('job_postings', {'status': 'open'})
+
+# Deliberately coarser than score_relevance.is_internship(): its job is only to
+# stop us pulling ~9,700 rows over the network to keep ~100 of them. All three
+# patterns are needed — '*intern*' alone would silently drop every co-op
+# posting. False positives ('internal', 'international', 'cooperative') are
+# expected here and get dropped by the regex on the way through.
+_INTERNSHIP_TITLE_FILTER = (
+    'title.ilike.*intern*,'
+    'title.ilike.*co-op*,'
+    'title.ilike.*coop*'
+)
+
+def get_open_internship_postings():
+    """Fetch open postings whose title plausibly names an internship."""
+    return _fetch_all_rows(
+        'job_postings',
+        {'status': 'open'},
+        or_filter=_INTERNSHIP_TITLE_FILTER,
+    )
 
 def update_posting_relevance_score(posting_id, score):
     """Update the relevance_score for a specific posting, by its id"""

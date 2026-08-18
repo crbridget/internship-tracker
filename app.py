@@ -58,7 +58,9 @@ def post_targets():
     if not targets or not isinstance(targets, list): # error handling
         return jsonify({'error': 'targets must be a non-empty list of strings'}), 400
 
-    job_postings = write_to_database.get_all_open_postings()
+    # narrow in SQL first: pulling every open posting just to keep the
+    # internships was the bulk of this request's time on the server
+    job_postings = write_to_database.get_open_internship_postings()
     scored = score_relevance.score_postings(targets, job_postings)
 
     for job in scored:
