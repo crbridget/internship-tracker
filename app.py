@@ -63,8 +63,7 @@ def post_targets():
     job_postings = write_to_database.get_open_internship_postings()
     scored = score_relevance.score_postings(targets, job_postings)
 
-    for job in scored:
-        write_to_database.update_posting_relevance_score(job['id'], job['relevance_score'])
+    write_to_database.update_posting_relevance_scores(scored)
 
     scored_sorted = sorted(scored, key=lambda j: j['relevance_score'], reverse=True)
     return jsonify(scored_sorted)

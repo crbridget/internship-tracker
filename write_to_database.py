@@ -111,6 +111,23 @@ def get_open_internship_postings():
         or_filter=_INTERNSHIP_TITLE_FILTER,
     )
 
+def update_posting_relevance_scores(postings, chunk_size=500):
+    """
+    Write relevance_score for many postings in one request per chunk.
+
+    Replaces a loop of one UPDATE per posting. Each of those was its own HTTPS
+    round-trip to Supabase — ~0.3s from Render, so 121 postings cost ~36s.
+
+    Takes whole posting rows rather than {id, score} pairs on purpose: upsert
+    compiles to INSERT ... ON CONFLICT, and Postgres builds the full tuple and
+    checks NOT NULL before it ever detects the conflict, so partial rows can be
+    rejected outright.
+    """
+    for i in range(0, len(postings), chunk_size):
+        chunk = postings[i:i + chunk_size]
+        supabase.table('job_postings').upsert(chunk, on_conflict='id').execute()
+
+
 def update_posting_relevance_score(posting_id, score):
     """Update the relevance_score for a specific posting, by its id"""
     response = supabase.table('job_postings').update({
