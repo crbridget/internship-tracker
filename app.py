@@ -72,7 +72,9 @@ def post_targets():
 @app.route('/internships', methods=['GET'])
 def get_internships():
     limit = request.args.get('limit', default=50, type=int)
-    postings = write_to_database.get_all_open_postings()
+    # same reason as /targets: narrow in SQL rather than pulling every open
+    # posting over the network to keep ~100 of them
+    postings = write_to_database.get_open_internship_postings()
     internships = [j for j in postings if score_relevance.is_internship(j['title'])]
     internships.sort(key=lambda j: j.get('first_published') or '', reverse=True)
     return jsonify(internships[:limit])
