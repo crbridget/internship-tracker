@@ -55,7 +55,7 @@ def post_targets():
     data = request.get_json()
     targets = data.get('targets')
 
-    if not targets or not isinstance(targets, list):
+    if not targets or not isinstance(targets, list): # error handling
         return jsonify({'error': 'targets must be a non-empty list of strings'}), 400
 
     job_postings = write_to_database.get_all_open_postings()
@@ -66,6 +66,14 @@ def post_targets():
 
     scored_sorted = sorted(scored, key=lambda j: j['relevance_score'], reverse=True)
     return jsonify(scored_sorted)
+
+@app.route('/internships', methods=['GET'])
+def get_internships():
+    limit = request.args.get('limit', default=50, type=int)
+    postings = write_to_database.get_all_open_postings()
+    internships = [j for j in postings if score_relevance.is_internship(j['title'])]
+    internships.sort(key=lambda j: j.get('first_published') or '', reverse=True)
+    return jsonify(internships[:limit])
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

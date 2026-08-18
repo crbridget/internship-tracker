@@ -6,6 +6,13 @@ import re
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+# Word-boundary match
+INTERNSHIP_RE = re.compile(r'\b(intern|internship|co-?op)\b', re.IGNORECASE)
+
+
+def is_internship(title):
+    return bool(INTERNSHIP_RE.search(title))
+
 def get_desc_embeddings(target_role_descs):
     return model.encode(target_role_descs)  
 
@@ -22,11 +29,7 @@ def get_relevance_score(targets, jobs):
 
 def score_postings(targets, job_postings):
     """Filter to internship postings, score them against targets, return scored list."""
-    keywords = ('intern', 'internship')
-    filtered = [
-        job for job in job_postings 
-        if any(word in job['title'].lower().replace(',', ' ').split() for word in keywords)
-    ]
+    filtered = [job for job in job_postings if is_internship(job['title'])]
 
     if not filtered:
         return []
@@ -52,11 +55,7 @@ if __name__ == '__main__':
         targets.append(line)
 
     job_postings = write_to_database.get_all_open_postings()
-    keywords = ('intern', 'internship', 'co-op', 'coop')
-    job_postings = [
-        job for job in job_postings 
-        if any(word in job['title'].lower().replace(',', ' ').split() for word in keywords)
-    ]
+    job_postings = [job for job in job_postings if is_internship(job['title'])]
     companies = write_to_database.get_all_active_companies()
     company_lookup = {c['id']: c for c in companies}
 

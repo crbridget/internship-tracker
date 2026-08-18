@@ -1,0 +1,439 @@
+:root {
+  /* palette */
+  --green: #abc270;
+  --yellow: #fec868;
+  --orange: #fda769;
+  --orange-deep: #fc9048;
+  --brown: #432616;
+
+  /* surfaces */
+  --bg: var(--green);
+  --surface: #f6f3e8;
+  --surface-hover: #efebdb;
+  --border: #e2dbc8;
+  --border-strong: #d2c8ae;
+
+  /* text. Two muted browns: the green page is much darker than the cream
+     cards, so muted type on green has to stay heavier to clear 4.5:1. */
+  --text: var(--brown);
+  --text-dim: #75594a;
+  --text-dim-green: #5c4436;
+
+  /* accents. --accent is for fills, --accent-text for type: the raw orange
+     is only 1.9:1 on the cream surface and unreadable as text. */
+  --accent: var(--orange);
+  --accent-hover: var(--orange-deep);
+  --accent-text: #b74e03;
+  --accent-soft: rgba(253, 167, 105, 0.28);
+
+  --success: #627532;
+  --success-soft: rgba(98, 117, 50, 0.16);
+  --error: #a63a2a;
+  --error-soft: rgba(166, 58, 42, 0.1);
+
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(67, 38, 22, 0.07), 0 6px 16px rgba(67, 38, 22, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#root {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--text);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.muted {
+  color: var(--text-dim-green);
+  font-weight: 500;
+}
+
+/* ---------- header ---------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  background: none;
+  border: none;
+  color: var(--text-dim-green);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tabs button:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.tabs button:disabled {
+  color: var(--brown);
+  background: var(--accent);
+  cursor: default;
+}
+
+/* ---------- search bar ---------- */
+
+.searchbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 6px 6px 18px;
+  gap: 4px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s ease;
+}
+
+.searchbar:focus-within {
+  border-color: var(--accent);
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-dim);
+}
+
+.search-field:nth-of-type(2) {
+  flex: 0 1 240px;
+}
+
+.search-field input {
+  width: 100%;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 10px 0;
+}
+
+.search-field input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+.search-divider {
+  width: 1px;
+  background: var(--border);
+  margin: 8px 6px;
+}
+
+.search-button {
+  background: var(--accent);
+  color: var(--brown);
+  border: none;
+  border-radius: 999px;
+  padding: 10px 26px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.search-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.search-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.search-hint {
+  margin: 10px 4px 0;
+  font-size: 12px;
+  color: var(--text-dim-green);
+}
+
+.results-count {
+  margin: 28px 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---------- result cards ---------- */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.job-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.job-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.job-card:focus-visible {
+  outline: 2px solid var(--brown);
+  outline-offset: 2px;
+}
+
+.job-main {
+  min-width: 0;
+}
+
+.job-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.job-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.job-company {
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.job-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.job-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.posting-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brown);
+  background: var(--yellow);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.job-arrow {
+  color: var(--text-dim);
+  font-size: 15px;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.job-card:hover .job-arrow {
+  color: var(--accent-text);
+  transform: translateX(2px);
+}
+
+.empty {
+  margin-top: 28px;
+  padding: 32px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.empty.loading {
+  font-weight: 600;
+  color: var(--text);
+  /* the text grows a character at a time; without this the card would
+     jitter horizontally as it types */
+  white-space: pre;
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent-text);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
+}
+
+/* ---------- add companies tab ---------- */
+
+.message {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.message.error {
+  margin: 16px 0 0;
+  background: var(--error-soft);
+  border: 1px solid rgba(166, 58, 42, 0.25);
+  color: var(--error);
+}
+
+.company-result {
+  margin-top: 24px;
+}
+
+.company-result-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim-green);
+  margin-bottom: 8px;
+}
+
+.company-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.company-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+
+.company-row.highlight {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.badge.active { background: var(--success-soft); color: var(--success); }
+.badge.inactive { background: var(--error-soft); color: var(--error); }
+
+/* ---------- narrow screens ---------- */
+
+@media (max-width: 640px) {
+  .searchbar {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: var(--radius);
+    padding: 6px;
+    gap: 0;
+  }
+
+  .search-field {
+    flex: 1 1 auto;
+    padding: 0 12px;
+  }
+
+  .search-field:nth-of-type(2) {
+    flex: 1 1 auto;
+  }
+
+  .search-divider {
+    width: auto;
+    height: 1px;
+    margin: 2px 12px;
+  }
+
+  .search-button {
+    border-radius: 8px;
+    margin-top: 6px;
+  }
+}

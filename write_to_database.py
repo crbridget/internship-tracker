@@ -12,6 +12,29 @@ key = os.environ.get("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 
+def _fetch_all_rows(table, filters, page_size=1000):
+    """
+    Fetch every matching row, a page at a time.
+
+    PostgREST caps a single response at 1000 rows, so an unpaged select
+    silently truncates once a table grows past that — no error, just
+    missing data. Keep requesting until a short page comes back.
+    """
+    rows = []
+    offset = 0
+    while True:
+        query = supabase.table(table).select('*')
+        for column, value in filters.items():
+            query = query.eq(column, value)
+
+        batch = query.range(offset, offset + page_size - 1).execute().data
+        rows.extend(batch)
+
+        if len(batch) < page_size:
+            return rows
+        offset += page_size
+
+
 def company_dict_to_row(company_name, info):
     """ Turn dictionary into a row to be inserted in table """
     return {
@@ -41,8 +64,7 @@ def update_company_status(source_token, new_status, failures, checked_at):
 
 def get_all_active_companies():
     """ Fetch all companies with the active status"""
-    response = supabase.table('companies').select('*').eq('status', 'active').execute()
-    return response.data
+    return _fetch_all_rows('companies', {'status': 'active'})
 
 def upsert_job_posting(job_posting):
     """ Insert new job posting or update if already in database """
@@ -59,13 +81,11 @@ def upsert_job_posting(job_posting):
 
 def get_existing_postings_for_company(company_id):
     """ Fetch all open job postings for a specific company"""
-    response = supabase.table('job_postings').select('*').eq('company_id', company_id).eq('status', 'open').execute()
-    return response.data
+    return _fetch_all_rows('job_postings', {'company_id': company_id, 'status': 'open'})
 
 def get_all_open_postings():
     """Fetch all open job postings, across all companies"""
-    response = supabase.table('job_postings').select('*').eq('status', 'open').execute()
-    return response.data
+    return _fetch_all_rows('job_postings', {'status': 'open'})
 
 def update_posting_relevance_score(posting_id, score):
     """Update the relevance_score for a specific posting, by its id"""
