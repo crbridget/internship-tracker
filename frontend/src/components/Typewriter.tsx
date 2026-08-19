@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
-// Deliberately not exported: react-refresh/only-export-components flags modules
-// that export non-components alongside components, and nothing else needs this.
+
 const prefersReducedMotion = (): boolean =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
@@ -13,12 +12,6 @@ interface TypewriterProps {
   holdEmpty?: number
 }
 
-/**
- * Types the message out, holds it, backspaces it away, and starts over —
- * looping for as long as it stays mounted, which is however long the search
- * takes. Erasing is quicker than typing so the re-write feels like the
- * deliberate part of the cycle rather than dead time.
- */
 export function Typewriter({
   text,
   typeSpeed = 45,

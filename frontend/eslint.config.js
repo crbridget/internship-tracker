@@ -20,8 +20,7 @@ export default defineConfig([
     },
   },
   {
-    // Same react rules as above — the hooks plugin is what caught the
-    // set-state-in-effect bug, so .tsx must not lose it.
+
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,

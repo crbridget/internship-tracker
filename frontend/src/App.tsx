@@ -7,11 +7,7 @@ import { useCompanies } from './hooks/useCompanies'
 import { useInternshipSearch } from './hooks/useInternshipSearch'
 import type { Tab } from './types'
 
-/**
- * Both hooks are called here rather than inside the feature components, so
- * search results and the company catalog survive switching tabs — the feature
- * components unmount, App doesn't.
- */
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('search')
   const companies = useCompanies()

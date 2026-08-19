@@ -5,9 +5,8 @@ import type { Company, CompanyResult } from '../types'
 
 export interface CompaniesState {
   all: Company[]
-  /** Alphabetical, case-insensitive, for display. */
+  /** Alphabetical */
   sorted: Company[]
-  /** Postings carry company_id, not a name — this resolves it. */
   namesById: Map<number, string>
   query: string
   setQuery: (value: string) => void
@@ -16,13 +15,7 @@ export interface CompaniesState {
   submit: () => Promise<void>
 }
 
-/**
- * Owns the tracked-company catalog and the add flow.
- *
- * Shared state by necessity: AddCompanies can insert a company, and FindRoles
- * reads the same list to label postings. Called from App so both tabs see one
- * copy and it survives switching between them.
- */
+
 export function useCompanies(): CompaniesState {
   const [all, setAll] = useState<Company[]>([])
   const [query, setQuery] = useState('')
@@ -36,7 +29,7 @@ export function useCompanies(): CompaniesState {
       .catch(err => {
         if (!isAbort(err)) console.error('Could not load companies:', err)
       })
-    return () => controller.abort() // cancel in flight if we unmount first
+    return () => controller.abort() 
   }, [])
 
   const namesById = useMemo(() => new Map(all.map(c => [c.id, c.company_name])), [all])
@@ -49,8 +42,7 @@ export function useCompanies(): CompaniesState {
     [all]
   )
 
-  // Two-step: check what we already track before spending an API call, and
-  // only fall through to Greenhouse/Lever verification for unknown names.
+ 
   const submit = async () => {
     const name = query.trim()
     if (!name) {

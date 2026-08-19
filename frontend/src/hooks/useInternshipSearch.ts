@@ -10,24 +10,15 @@ export interface InternshipSearch {
   setRoleInput: (value: string) => void
   locationInput: string
   setLocationInput: (value: string) => void
-  /** Postings after the location filter — what to render. */
   visible: Posting[]
-  /** Postings before the location filter, for the "of N" count. */
   shown: Posting[]
   searched: boolean
   loading: boolean
-  /** A search or the initial load is in flight. */
   busy: boolean
   error: string
   submit: () => Promise<void>
 }
 
-/**
- * Owns the role/location search and the default "newest internships" list.
- *
- * Called from App rather than from FindRoles so the results survive a tab
- * switch — FindRoles unmounts when the user opens Add Companies.
- */
 export function useInternshipSearch(): InternshipSearch {
   const [recent, setRecent] = useState<Posting[]>([])
   const [recentLoading, setRecentLoading] = useState(true)
@@ -39,7 +30,7 @@ export function useInternshipSearch(): InternshipSearch {
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
 
-  // Default view: the newest internships. The API filters, sorts and limits.
+  // default view: the newest internships 
   useEffect(() => {
     const controller = new AbortController()
     getRecentInternships(RECENT_LIMIT, controller.signal)
@@ -53,11 +44,8 @@ export function useInternshipSearch(): InternshipSearch {
     return () => controller.abort()
   }, [])
 
-  // ScoredPosting is assignable to Posting — the score is just narrower.
   const shown: Posting[] = searched ? results : recent
 
-  // Location narrows whatever is on screen, so typing filters live without
-  // another round trip to the scorer.
   const visible = useMemo(() => {
     const needle = locationInput.trim().toLowerCase()
     if (!needle) return shown
@@ -70,7 +58,6 @@ export function useInternshipSearch(): InternshipSearch {
       .map(part => part.trim())
       .filter(Boolean)
 
-    // An empty role box goes back to the default "newest" view.
     if (targets.length === 0) {
       setSearched(false)
       setResults([])

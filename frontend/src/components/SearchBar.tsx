@@ -5,10 +5,10 @@ interface SearchFieldProps {
   placeholder: string
   value: string
   onChange: (value: string) => void
-  /** Enter submits, matching the bar's button. */
   onEnter?: () => void
 }
 
+// search field
 export function SearchField({ icon, placeholder, value, onChange, onEnter }: SearchFieldProps) {
   return (
     <div className="search-field">
@@ -26,20 +26,14 @@ export function SearchField({ icon, placeholder, value, onChange, onEnter }: Sea
   )
 }
 
-/**
- * Sits between two SearchFields.
- *
- * Explicit rather than auto-inserted by SearchBar, because App.css sizes the
- * location input via `.search-field:nth-of-type(2)`. That selector only works
- * while the fields are direct div children of .searchbar in source order, so
- * the DOM shape needs to stay visible at the call site.
- */
+
+// divider for between elements
 export function SearchDivider() {
   return <span className="search-divider" />
 }
 
+// search field elements
 interface SearchBarProps {
-  /** SearchField elements, and a SearchDivider between them if there are two. */
   children: ReactNode
   onSubmit: () => void
   loading?: boolean
@@ -47,10 +41,7 @@ interface SearchBarProps {
   loadingLabel?: string
 }
 
-/**
- * The pill-shaped bar: holds the fields and owns the submit button, which must
- * stay the last child for the rounded right edge to land on it.
- */
+// The pill-shaped bar, holds the fields and owns submit button
 export function SearchBar({
   children,
   onSubmit,

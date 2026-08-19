@@ -13,19 +13,18 @@
   --border: #e2dbc8;
   --border-strong: #d2c8ae;
 
-  /* text. Two muted browns: the green page is much darker than the cream
-     cards, so muted type on green has to stay heavier to clear 4.5:1. */
+  /* text */
   --text: var(--brown);
   --text-dim: #75594a;
   --text-dim-green: #5c4436;
 
-  /* accents. --accent is for fills, --accent-text for type: the raw orange
-     is only 1.9:1 on the cream surface and unreadable as text. */
+  /* accents */
   --accent: var(--orange);
   --accent-hover: var(--orange-deep);
   --accent-text: #b74e03;
   --accent-soft: rgba(253, 167, 105, 0.28);
 
+  /* status colors */
   --success: #627532;
   --success-soft: rgba(98, 117, 50, 0.16);
   --error: #a63a2a;
@@ -68,7 +67,7 @@ h2 {
   font-weight: 500;
 }
 
-/* ---------- header ---------- */
+/* header */
 
 .header {
   display: flex;
@@ -115,7 +114,7 @@ h2 {
   cursor: default;
 }
 
-/* ---------- search bar ---------- */
+/* search bar */
 
 .searchbar {
   display: flex;
@@ -205,7 +204,7 @@ h2 {
   color: var(--text);
 }
 
-/* ---------- result cards ---------- */
+/* result cards */
 
 .results {
   display: flex;
@@ -312,8 +311,6 @@ h2 {
 .empty.loading {
   font-weight: 600;
   color: var(--text);
-  /* the text grows a character at a time; without this the card would
-     jitter horizontally as it types */
   white-space: pre;
 }
 
@@ -337,7 +334,7 @@ h2 {
   }
 }
 
-/* ---------- add companies tab ---------- */
+/* add companies tab */
 
 .message {
   margin-top: 12px;
@@ -406,7 +403,7 @@ h2 {
 .badge.active { background: var(--success-soft); color: var(--success); }
 .badge.inactive { background: var(--error-soft); color: var(--error); }
 
-/* ---------- narrow screens ---------- */
+/* narrow screens */
 
 @media (max-width: 640px) {
   .searchbar {

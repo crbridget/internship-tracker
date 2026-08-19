@@ -5,7 +5,7 @@ interface HeaderProps {
   onTabChange: (tab: Tab) => void
 }
 
-/** Brand upper-left, tabs to its right. The active tab is disabled, not styled. */
+// tab headers
 export function Header({ activeTab, onTabChange }: HeaderProps) {
   return (
     <header className="header">

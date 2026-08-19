@@ -70,7 +70,6 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
               key={job.id}
               job={job}
               companyName={companyNames.get(job.company_id)}
-              // a persisted score only reflects the query the user just ran
               score={searched ? job.relevance_score : null}
             />
           ))}

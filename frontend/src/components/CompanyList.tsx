@@ -1,6 +1,6 @@
 import type { Company } from '../types'
 
-// Shared so the list row and the search-result row can't drift apart.
+// name and status of company
 function NameAndStatus({ company }: { company: Company }) {
   return (
     <>
@@ -14,6 +14,7 @@ interface CompanyListProps {
   companies: Company[]
 }
 
+// company list
 export function CompanyList({ companies }: CompanyListProps) {
   return (
     <ul className="company-list">
@@ -31,12 +32,7 @@ interface CompanyHighlightProps {
   label: string
 }
 
-/**
- * The single company surfaced by a search, above the full list.
- *
- * A div rather than an li because it sits outside the <ul> — .company-row is
- * styled by class, not by element, so both render identically.
- */
+// single company result
 export function CompanyHighlight({ company, label }: CompanyHighlightProps) {
   return (
     <div className="company-result">

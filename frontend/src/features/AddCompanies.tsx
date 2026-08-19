@@ -28,9 +28,6 @@ export function AddCompanies({ companies }: AddCompaniesProps) {
 
       {result?.kind === 'error' && <div className="message error">{result.text}</div>}
 
-      {/* kind !== 'error' narrows to found|added, both of which carry a company;
-          the truthiness check then rules out the undefined that .find() can
-          return on the 'added' branch. */}
       {result && result.kind !== 'error' && result.company && (
         <CompanyHighlight
           company={result.company}
