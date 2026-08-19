@@ -62,7 +62,10 @@ def poll_company(company):
     existing_postings = write_to_database.get_existing_postings_for_company(company_id)
     existing_ids = {p['external_job_id'] for p in existing_postings}
 
-    # 5. Upsert every posting from the fresh API response, in one batched call
+    # 5. Upsert every posting from the fresh API response, in one batched call.
+    #    first_seen covers all statuses so an existing posting keeps the
+    #    first_seen_at it was originally given.
+    first_seen = write_to_database.get_first_seen_by_external_id(company_id)
     rows = []
     fresh_ids = set()
     for raw_posting in raw_postings:
@@ -70,7 +73,7 @@ def poll_company(company):
         row['company_id'] = company_id
         fresh_ids.add(row['external_job_id'])
         rows.append(row)
-    write_to_database.upsert_job_postings(rows)
+    write_to_database.upsert_job_postings(rows, first_seen)
 
     # 6. Anything that was open before but missing now has closed
     closed_ids = existing_ids - fresh_ids

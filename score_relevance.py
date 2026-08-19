@@ -6,6 +6,13 @@ import re
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+# torch defers kernel setup until the first forward pass, making it ~45x slower
+# than every call after it (0.46s vs 0.01s locally). Spending it at import means
+# the deploy absorbs it instead of whoever searches first. Note this only trims
+# seconds off a cold start — the bulk is the container waking and loading the
+# model, which nothing here can avoid.
+model.encode(['warmup'])
+
 # Word-boundary match
 INTERNSHIP_RE = re.compile(r'\b(intern|internship|co-?op)\b', re.IGNORECASE)
 

@@ -84,24 +84,51 @@ def upsert_job_posting(job_posting):
     return response
 
 
-def upsert_job_postings(job_postings, chunk_size=500):
+def get_first_seen_by_external_id(company_id):
+    """
+    Map external_job_id -> stored first_seen_at for one company, any status.
+
+    Status-agnostic on purpose: get_existing_postings_for_company() filters to
+    'open', so a posting that closed and reopened would look brand new and get
+    its first_seen_at reset.
+    """
+    seen = {}
+    offset = 0
+    page_size = 1000
+    while True:
+        batch = (supabase.table('job_postings')
+                 .select('external_job_id, first_seen_at')
+                 .eq('company_id', company_id)
+                 .range(offset, offset + page_size - 1)
+                 .execute().data)
+        for row in batch:
+            seen[row['external_job_id']] = row['first_seen_at']
+        if len(batch) < page_size:
+            return seen
+        offset += page_size
+
+
+def upsert_job_postings(job_postings, first_seen_by_id=None, chunk_size=500):
     """
     Upsert many postings in one request per chunk.
 
     Replaces a loop of upsert_job_posting(). Each of those was its own HTTPS
     round-trip, so a full poll of ~10.7k postings meant ~10.7k requests.
 
-    Timestamp handling mirrors upsert_job_posting exactly, so this is a pure
-    performance change — including the first_seen_at overwrite. See the note in
-    upsert_job_posting.
+    first_seen_by_id carries the dates already stored, so a posting we've seen
+    before keeps its original one. The value has to be re-sent rather than
+    omitted: a PostgREST upsert is INSERT .. ON CONFLICT DO UPDATE, Postgres
+    builds the full tuple first, and first_seen_at is NOT NULL with no default —
+    leaving it out fails with 23502 instead of falling back to the stored value.
     """
     if not job_postings:
         return
 
+    known = first_seen_by_id or {}
     now = datetime.now().isoformat()
     for posting in job_postings:
         posting['last_seen_at'] = now
-        posting.setdefault('first_seen_at', now)
+        posting['first_seen_at'] = known.get(posting['external_job_id'], now)
 
     for i in range(0, len(job_postings), chunk_size):
         supabase.table('job_postings').upsert(
