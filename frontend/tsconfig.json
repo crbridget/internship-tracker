@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // .jsx and .tsx coexist so the migration can go one file at a time.
+    // checkJs stays off: existing JS is parsed for imports but not typechecked,
+    // so converting a file is what opts it in.
+    "allowJs": true,
+    "checkJs": false,
+
+    // Vite/esbuild does the emitting; tsc is only ever a checker here. That
+    // also means `vite build` does NOT typecheck — run `npm run typecheck`.
+    "noEmit": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"]
+}

@@ -1,18 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import './App.css'
-
-// Set VITE_API_URL in the deploy environment to point at the hosted Flask app.
-// Falls back to local dev: 127.0.0.1 rather than localhost because on macOS
-// localhost can resolve to ::1, where AirPlay Receiver is listening on :5000
-// and answers with a 403.
-const API = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000'
-
-// Mirrors is_internship() in score_relevance.py. Duplicated here only because
-// there is no endpoint that returns internships directly — /postings hands back
-// every open row. See the note in the README about folding this into the API.
-const INTERNSHIP_RE = /\b(intern|internship|co-?op)\b/i
-
-const DEFAULT_LIMIT = 50
+import { addCompany, ApiError, getCompanies, getRecentInternships, scorePostings } from './api'
 
 const SearchIcon = ({ size = 18 }) => (
   <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -78,17 +66,6 @@ const formatDate = (value) => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ISO 8601 strings sort correctly as plain strings. Undated postings sink to
-// the bottom rather than pretending to be old or new.
-const byNewest = (a, b) => {
-  const left = a.first_published || ''
-  const right = b.first_published || ''
-  if (!left && !right) return 0
-  if (!left) return 1
-  if (!right) return -1
-  return right.localeCompare(left)
-}
-
 function JobCard({ job, companyName, showScore }) {
   const posted = job.first_published ? formatDate(job.first_published) : null
 
@@ -140,45 +117,33 @@ function App() {
   const [searched, setSearched] = useState(false)
   const [searchError, setSearchError] = useState('')
 
-  const fetchCompanies = async () => {
-    const res = await fetch(`${API}/companies`)
-    if (!res.ok) throw new Error(`GET /companies returned ${res.status}`)
-    return res.json()
-  }
-
   useEffect(() => {
-    let cancelled = false
-    fetchCompanies()
-      .then(data => { if (!cancelled) setCompanies(data) })
-      .catch(err => console.error('Could not load companies:', err))
-    return () => { cancelled = true } // ignore the response if we unmount first
+    const controller = new AbortController()
+    getCompanies(controller.signal)
+      .then(setCompanies)
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error('Could not load companies:', err)
+      })
+    return () => controller.abort() // cancel in flight if we unmount first
   }, [])
 
-  // Default view: the newest internships, no search required.
+  // Default view: the newest internships. The API filters, sorts and limits.
   useEffect(() => {
-    let cancelled = false
-    fetch(`${API}/postings`)
-      .then(res => {
-        if (!res.ok) throw new Error(`GET /postings returned ${res.status}`)
-        return res.json()
+    const controller = new AbortController()
+    getRecentInternships(50, controller.signal)
+      .then(setRecent)
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error('Could not load internships:', err)
       })
-      .then(data => {
-        if (cancelled) return
-        const newest = data
-          .filter(job => INTERNSHIP_RE.test(job.title))
-          .sort(byNewest)
-          .slice(0, DEFAULT_LIMIT)
-        setRecent(newest)
+      .finally(() => {
+        if (!controller.signal.aborted) setRecentLoading(false)
       })
-      .catch(err => console.error('Could not load recent postings:', err))
-      .finally(() => { if (!cancelled) setRecentLoading(false) })
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [])
 
   // postings carry company_id, not a name; resolve it against the catalog.
-  // Keys are stringified because the two endpoints disagree on int vs string.
   const companyNames = useMemo(
-    () => new Map(companies.map(c => [String(c.id), c.company_name])),
+    () => new Map(companies.map(c => [c.id, c.company_name])),
     [companies]
   )
 
@@ -216,18 +181,15 @@ function App() {
     setLoading(true)
     setSearchError('')
     try {
-      const res = await fetch(`${API}/targets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets }),
-      })
-      if (!res.ok) throw new Error(`POST /targets returned ${res.status}`)
-      setResults(await res.json())
+      setResults(await scorePostings(targets))
       setSearched(true)
     } catch (err) {
       console.error('Could not score postings:', err)
       setResults([])
-      setSearchError('Could not reach the server. Is app.py running?')
+      // ApiError means the server answered, so show its own wording
+      setSearchError(
+        err instanceof ApiError ? err.message : 'Could not reach the server. Is app.py running?'
+      )
     } finally {
       setLoading(false)
     }
@@ -253,28 +215,22 @@ function App() {
     setCompanyLoading(true)
     setCompanyResult(null)
     try {
-      const res = await fetch(`${API}/companies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_name: name }),
+      const added = await addCompany(name)
+      const refreshed = await getCompanies()
+      setCompanies(refreshed)
+      setCompanyResult({
+        kind: 'added',
+        text: added.message,
+        company: refreshed.find(c => c.company_name.toLowerCase() === name.toLowerCase()),
       })
-      const data = await res.json()
-
-      if (res.ok) {
-        const refreshed = await fetchCompanies()
-        setCompanies(refreshed)
-        setCompanyResult({
-          kind: 'added',
-          text: data.message,
-          company: refreshed.find(c => c.company_name.toLowerCase() === name.toLowerCase()),
-        })
-        setCompanyQuery('')
-      } else {
-        setCompanyResult({ kind: 'error', text: data.error })
-      }
+      setCompanyQuery('')
     } catch (err) {
       console.error('Could not add company:', err)
-      setCompanyResult({ kind: 'error', text: 'Could not reach the server. Is app.py running?' })
+      setCompanyResult({
+        kind: 'error',
+        // a 404 from the board check is the server talking, not a dead server
+        text: err instanceof ApiError ? err.message : 'Could not reach the server. Is app.py running?',
+      })
     } finally {
       setCompanyLoading(false)
     }
@@ -353,7 +309,7 @@ function App() {
                 <JobCard
                   key={job.id}
                   job={job}
-                  companyName={companyNames.get(String(job.company_id))}
+                  companyName={companyNames.get(job.company_id)}
                   showScore={searched}
                 />
               ))}
