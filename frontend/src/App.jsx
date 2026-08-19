@@ -1,70 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import './App.css'
 import { addCompany, ApiError, getCompanies, getRecentInternships, scorePostings } from './api'
-
-const SearchIcon = ({ size = 18 }) => (
-  <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-)
-
-const LocationIcon = ({ size = 18 }) => (
-  <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
-    <circle cx="12" cy="10" r="3" />
-  </svg>
-)
-
-const prefersReducedMotion = () =>
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-
-// Types the message out, holds it, backspaces it away, and starts over —
-// looping for as long as it stays mounted, which is however long the search
-// takes. Erasing is quicker than typing so the re-write feels like the
-// deliberate part of the cycle rather than dead time.
-function Typewriter({
-  text,
-  typeSpeed = 45,
-  eraseSpeed = 25,
-  holdFull = 900,
-  holdEmpty = 350,
-}) {
-  const [reduced] = useState(prefersReducedMotion)
-  const [count, setCount] = useState(() => (prefersReducedMotion() ? text.length : 0))
-  const [erasing, setErasing] = useState(false)
-
-  useEffect(() => {
-    if (reduced) return
-
-    const atEnd = !erasing && count === text.length
-    const atStart = erasing && count === 0
-    const delay = atEnd ? holdFull : atStart ? holdEmpty : erasing ? eraseSpeed : typeSpeed
-
-    const id = setTimeout(() => {
-      if (atEnd) setErasing(true)
-      else if (atStart) setErasing(false)
-      else setCount(c => c + (erasing ? -1 : 1))
-    }, delay)
-
-    return () => clearTimeout(id)
-  }, [count, erasing, text, reduced, typeSpeed, eraseSpeed, holdFull, holdEmpty])
-
-  return (
-    <span aria-hidden="true">
-      {text.slice(0, count)}
-      {!reduced && <span className="caret" />}
-    </span>
-  )
-}
-
-const formatDate = (value) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
+import { LocationIcon, SearchIcon } from './components/icons'
+import { Typewriter } from './components/Typewriter'
+import { formatDate } from './lib/format'
 
 function JobCard({ job, companyName, showScore }) {
   const posted = job.first_published ? formatDate(job.first_published) : null
