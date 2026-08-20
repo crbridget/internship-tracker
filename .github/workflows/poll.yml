@@ -26,11 +26,3 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          # notify.py no-ops when these are unset, so the poll still works
-          # normally until the secrets exist
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
-          # a repo variable, not a secret — it's just role names, and having it
-          # visible makes it easy to see what you're watching
-          NOTIFY_ROLES: ${{ vars.NOTIFY_ROLES }}

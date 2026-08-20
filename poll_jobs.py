@@ -1,7 +1,6 @@
 import write_to_database
 import greenhouse_lever_check
 import internship_filter
-import notify
 from datetime import datetime
 
 
@@ -70,8 +69,6 @@ def poll_company(company):
     existing_ids = {p['external_job_id'] for p in existing_postings}
 
     # 5. Upsert every posting from the fresh API response, in one batched call.
-    #    first_seen covers all statuses so an existing posting keeps the
-    #    first_seen_at it was originally given.
     first_seen = write_to_database.get_first_seen_by_external_id(company_id)
     rows = []
     fresh_ids = set()
@@ -86,9 +83,7 @@ def poll_company(company):
     closed_ids = existing_ids - fresh_ids
     write_to_database.close_postings(company_id, closed_ids)
 
-    # 7. Anything absent from first_seen is genuinely new. Copies, not the rows
-    #    themselves: company_name isn't a column, so adding it to an upsert
-    #    payload would be rejected.
+    # 7. Anything absent from first_seen is new
     new_internships = [
         {**row, 'company_name': company['company_name']}
         for row in rows
@@ -106,9 +101,5 @@ def poll_company(company):
 if __name__ == "__main__":
     companies = write_to_database.get_all_active_companies()
 
-    new_internships = []
     for company in companies:
-        new_internships.extend(poll_company(company))
-
-    # one digest for the whole run, not one email per company
-    notify.send_new_internships(new_internships)
+        poll_company(company)

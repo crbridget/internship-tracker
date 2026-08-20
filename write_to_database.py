@@ -14,7 +14,8 @@ supabase = create_client(url, key)
 
 def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
     """
-    Fetch every matching row, a page at a time.
+    Supabase limits at 1000 rows per request.
+    This function loops through every page until all the data is fetched.
     """
     rows = []
     offset = 0
@@ -28,7 +29,7 @@ def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
         batch = query.range(offset, offset + page_size - 1).execute().data
         rows.extend(batch)
 
-        if len(batch) < page_size:
+        if len(batch) < page_size: # ends loop when number of rows < 1000
             return rows
         offset += page_size
 
@@ -44,7 +45,7 @@ def company_dict_to_row(company_name, info):
     }
 
 def upsert_company(company_dict):
-    """ insert aor update a company row into the company table, keyed on source token"""
+    """ insert or update a company row into the company table, keyed on source token"""
     response = supabase.table('companies').upsert(
         company_dict,
         on_conflict='source_token'
@@ -79,11 +80,7 @@ def upsert_job_posting(job_posting):
 
 def get_first_seen_by_external_id(company_id):
     """
-    Map external_job_id -> stored first_seen_at for one company, any status.
-
-    Status-agnostic on purpose: get_existing_postings_for_company() filters to
-    'open', so a posting that closed and reopened would look brand new and get
-    its first_seen_at reset.
+    Takes company ID and returns look up, mapping external_job_id -> first_seen_at for every posting.
     """
     seen = {}
     offset = 0
@@ -103,16 +100,7 @@ def get_first_seen_by_external_id(company_id):
 
 def upsert_job_postings(job_postings, first_seen_by_id=None, chunk_size=500):
     """
-    Upsert many postings in one request per chunk.
-
-    Replaces a loop of upsert_job_posting(). Each of those was its own HTTPS
-    round-trip, so a full poll of ~10.7k postings meant ~10.7k requests.
-
-    first_seen_by_id carries the dates already stored, so a posting we've seen
-    before keeps its original one. The value has to be re-sent rather than
-    omitted: a PostgREST upsert is INSERT .. ON CONFLICT DO UPDATE, Postgres
-    builds the full tuple first, and first_seen_at is NOT NULL with no default —
-    leaving it out fails with 23502 instead of falling back to the stored value.
+    Upsert many postings in one request per chunk (500).
     """
     if not job_postings:
         return
@@ -149,11 +137,7 @@ def get_all_open_postings():
     """Fetch all open job postings, across all companies"""
     return _fetch_all_rows('job_postings', {'status': 'open'})
 
-# Deliberately coarser than score_relevance.is_internship(): its job is only to
-# stop us pulling ~9,700 rows over the network to keep ~100 of them. All three
-# patterns are needed — '*intern*' alone would silently drop every co-op
-# posting. False positives ('internal', 'international', 'cooperative') are
-# expected here and get dropped by the regex on the way through.
+
 _INTERNSHIP_TITLE_FILTER = (
     'title.ilike.*intern*,'
     'title.ilike.*co-op*,'
@@ -171,14 +155,6 @@ def get_open_internship_postings():
 def update_posting_relevance_scores(postings, chunk_size=500):
     """
     Write relevance_score for many postings in one request per chunk.
-
-    Replaces a loop of one UPDATE per posting. Each of those was its own HTTPS
-    round-trip to Supabase — ~0.3s from Render, so 121 postings cost ~36s.
-
-    Takes whole posting rows rather than {id, score} pairs on purpose: upsert
-    compiles to INSERT ... ON CONFLICT, and Postgres builds the full tuple and
-    checks NOT NULL before it ever detects the conflict, so partial rows can be
-    rejected outright.
     """
     for i in range(0, len(postings), chunk_size):
         chunk = postings[i:i + chunk_size]
