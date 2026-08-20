@@ -58,8 +58,6 @@ def post_targets():
     if not targets or not isinstance(targets, list): # error handling
         return jsonify({'error': 'targets must be a non-empty list of strings'}), 400
 
-    # narrow in SQL first: pulling every open posting just to keep the
-    # internships was the bulk of this request's time on the server
     job_postings = write_to_database.get_open_internship_postings()
     scored = score_relevance.score_postings(targets, job_postings)
 
@@ -71,8 +69,6 @@ def post_targets():
 @app.route('/internships', methods=['GET'])
 def get_internships():
     limit = request.args.get('limit', default=50, type=int)
-    # same reason as /targets: narrow in SQL rather than pulling every open
-    # posting over the network to keep ~100 of them
     postings = write_to_database.get_open_internship_postings()
     internships = [j for j in postings if score_relevance.is_internship(j['title'])]
     internships.sort(key=lambda j: j.get('first_published') or '', reverse=True)

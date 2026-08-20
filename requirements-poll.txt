@@ -1,8 +1,4 @@
 # Dependencies for poll_jobs.py only.
-#
-# The poller never touches the scoring model — verified: importing poll_jobs
-# loads no torch, transformers, or sklearn. Keeping it off the main
-# requirements.txt avoids installing ~200MB of torch on every cron deploy.
 python-dotenv==1.2.2
 requests==2.34.2
 supabase==2.31.0
