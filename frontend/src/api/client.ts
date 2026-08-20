@@ -44,6 +44,7 @@ async function readErrorMessage(res: Response, method: string, path: string): Pr
       return body.error
     }
   } catch {
+    // body wasn't JSON — e.g. Render's HTML 502 page. Fall through.
   }
   return `${method} ${path} returned ${res.status}`
 }

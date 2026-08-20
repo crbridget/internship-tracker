@@ -2,17 +2,14 @@ name: Poll job boards
 
 on:
   schedule:
-    # every 6 hours, UTC. GitHub may delay scheduled runs under load, so treat
-    # this as "roughly every 6 hours" rather than on the minute.
-    - cron: '0 */6 * * *'
+    - cron: '*/30 * * * *'
+
   # lets you run it by hand from the Actions tab without waiting for the schedule
   workflow_dispatch:
 
 jobs:
   poll:
     runs-on: ubuntu-latest
-    # poll_company upserts one posting at a time across ~10k postings, so a full
-    # run takes several minutes. The cap stops a hung run from spinning forever.
     timeout-minutes: 30
 
     steps:
@@ -23,10 +20,14 @@ jobs:
           python-version: '3.10'
           cache: pip
 
-      # the poller needs no ML stack, so this skips torch entirely
       - run: pip install -r requirements-poll.txt
 
       - run: python poll_jobs.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # notify.py no-ops when these are unset, so the poll still works
+          # normally until the secrets exist
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_TO: ${{ secrets.NOTIFY_TO }}

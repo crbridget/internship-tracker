@@ -1,5 +1,7 @@
 import write_to_database
 import greenhouse_lever_check
+import internship_filter
+import notify
 from datetime import datetime
 
 
@@ -30,7 +32,12 @@ def normalize_lever_posting(posting):
 
 
 def poll_company(company):
-    """Poll one company's board, upsert postings, detect closures, update status."""
+    """
+    Poll one company's board, upsert postings, detect closures, update status.
+
+    Returns the internship postings seen here for the first time, for the email
+    digest. Empty list when the check failed or nothing new turned up.
+    """
     company_id = company['id']
     source_token = company['source_token']
     source = company['source']
@@ -45,7 +52,7 @@ def poll_company(company):
         normalize_fn = normalize_lever_posting
     else:
         print(f"Unknown source for {company['company_name']}, skipping")
-        return
+        return []
 
     # 2. Handle failure, increment consecutive_failures, mark inactive if 3 or more errors
     if raw_postings is None:
@@ -53,7 +60,7 @@ def poll_company(company):
         new_status = 'inactive' if new_failures >= 3 else 'active'
         write_to_database.update_company_status(source_token, new_status, new_failures, checked_at)
         print(f"{company['company_name']}: check failed ({new_failures} consecutive failures)")
-        return
+        return []
 
     # 3. if success: reset failures, confirm active
     write_to_database.update_company_status(source_token, 'active', 0, checked_at)
@@ -79,10 +86,29 @@ def poll_company(company):
     closed_ids = existing_ids - fresh_ids
     write_to_database.close_postings(company_id, closed_ids)
 
-    print(f"{company['company_name']}: {len(fresh_ids)} open, {len(closed_ids)} newly closed")
+    # 7. Anything absent from first_seen is genuinely new. Copies, not the rows
+    #    themselves: company_name isn't a column, so adding it to an upsert
+    #    payload would be rejected.
+    new_internships = [
+        {**row, 'company_name': company['company_name']}
+        for row in rows
+        if row['external_job_id'] not in first_seen
+        and internship_filter.is_internship(row['title'])
+    ]
+
+    print(
+        f"{company['company_name']}: {len(fresh_ids)} open, "
+        f"{len(closed_ids)} newly closed, {len(new_internships)} new internships"
+    )
+    return new_internships
 
 
 if __name__ == "__main__":
     companies = write_to_database.get_all_active_companies()
+
+    new_internships = []
     for company in companies:
-        poll_company(company)
+        new_internships.extend(poll_company(company))
+
+    # one digest for the whole run, not one email per company
+    notify.send_new_internships(new_internships)
