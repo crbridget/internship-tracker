@@ -11,11 +11,15 @@ they did before mail existed.
   GMAIL_USER          the sending address
   GMAIL_APP_PASSWORD  a Google App Password, not the account password
   NOTIFY_TO           recipient(s), comma-separated; defaults to GMAIL_USER
+  NOTIFY_ROLES        roles to watch, comma-separated. Unset means notify on
+                      every new internship.
 """
 
 import html
 import os
 import smtplib
+
+import internship_filter
 from email.message import EmailMessage
 
 SMTP_HOST = 'smtp.gmail.com'
@@ -100,6 +104,19 @@ def send_new_internships(postings):
     if not postings:
         print('notify: no new internships, nothing to send')
         return False
+
+    roles = internship_filter.parse_roles(os.environ.get('NOTIFY_ROLES'))
+    if roles:
+        matched = [p for p in postings if internship_filter.matches_any_role(p['title'], roles)]
+        print(
+            f'notify: {len(matched)}/{len(postings)} new internships match '
+            f'NOTIFY_ROLES ({", ".join(roles)})'
+        )
+        postings = matched
+        if not postings:
+            return False
+    else:
+        print('notify: NOTIFY_ROLES is unset, so every new internship qualifies')
 
     count = len(postings)
     label = f"{count} new internship{'' if count == 1 else 's'}"

@@ -15,13 +15,6 @@ supabase = create_client(url, key)
 def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
     """
     Fetch every matching row, a page at a time.
-
-    PostgREST caps a single response at 1000 rows, so an unpaged select
-    silently truncates once a table grows past that — no error, just
-    missing data. Keep requesting until a short page comes back.
-
-    or_filter is a raw PostgREST `or` expression, applied on top of the
-    equality filters.
     """
     rows = []
     offset = 0
