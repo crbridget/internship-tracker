@@ -70,7 +70,7 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
               key={job.id}
               job={job}
               companyName={companyNames.get(job.company_id)}
-              score={searched ? job.relevance_score : null}
+              score={searched ? job.relevance_score ?? null : null}
             />
           ))}
         </div>

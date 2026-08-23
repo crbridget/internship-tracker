@@ -152,21 +152,6 @@ def get_open_internship_postings():
         or_filter=_INTERNSHIP_TITLE_FILTER,
     )
 
-def update_posting_relevance_scores(postings, chunk_size=500):
-    """
-    Write relevance_score for many postings in one request per chunk.
-    """
-    for i in range(0, len(postings), chunk_size):
-        chunk = postings[i:i + chunk_size]
-        supabase.table('job_postings').upsert(chunk, on_conflict='id').execute()
-
-
-def update_posting_relevance_score(posting_id, score):
-    """Update the relevance_score for a specific posting, by its id"""
-    response = supabase.table('job_postings').update({
-        'relevance_score': score
-    }).eq('id', posting_id).execute()
-    return response
 
 
 ## TESTING

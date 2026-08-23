@@ -61,7 +61,8 @@ def post_targets():
     job_postings = db.get_open_internship_postings()
     scored = scoring.score_postings(targets, job_postings)
 
-    db.update_posting_relevance_scores(scored)
+    # Scores are returned in the response and not persisted: they're specific to
+    # this request's targets, so a single global column can't represent them.
 
     scored_sorted = sorted(scored, key=lambda j: j['relevance_score'], reverse=True)
     return jsonify(scored_sorted)

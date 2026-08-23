@@ -33,14 +33,14 @@ export interface Posting {
   last_seen_at: string
   status: PostingStatus
 
-  relevance_score: number | null
-
-  user_label: string | null
+  // Optional, not nullable: no longer a database column. 
+  relevance_score?: number
 
   description: string | null
 }
 
-export type ScoredPosting = Omit<Posting, 'relevance_score'> & {
+/** /targets scores everything it returns, so the score is guaranteed there. */
+export type ScoredPosting = Posting & {
   relevance_score: number
 }
 
