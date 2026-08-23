@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import write_to_database
-from internship_filter import INTERNSHIP_RE, is_internship 
+from . import db
+from .titles import INTERNSHIP_RE, is_internship 
 
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -49,9 +49,9 @@ if __name__ == '__main__':
             break
         targets.append(line)
 
-    job_postings = write_to_database.get_all_open_postings()
+    job_postings = db.get_all_open_postings()
     job_postings = [job for job in job_postings if is_internship(job['title'])]
-    companies = write_to_database.get_all_active_companies()
+    companies = db.get_all_active_companies()
     company_lookup = {c['id']: c for c in companies}
 
     target_embeddings = get_desc_embeddings(targets)

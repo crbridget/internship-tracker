@@ -17,17 +17,17 @@ Three independently deployed pieces:
 Vercel          React + TypeScript SPA          frontend/
   │ VITE_API_URL
   ▼
-Render          Flask API + MiniLM scoring       app.py, score_relevance.py
+Render          Flask API + MiniLM scoring       backend/api.py, backend/scoring.py
   │
   ▼
-Supabase        Postgres                         script.sql
+Supabase        Postgres                         db/schema.sql
   ▲
   │
-GitHub Actions  poller, every 30 min             poll_jobs.py
+GitHub Actions  poller, every 30 min             backend/poller.py
 ```
 
 The poller and the API are separate entry points against the same database. The
-poller deliberately does **not** import `score_relevance` — see
+poller deliberately does **not** import `backend.scoring` — see
 [Why two requirements files](#why-two-requirements-files).
 
 ## Local development
@@ -37,7 +37,7 @@ Backend:
 ```bash
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python app.py            # http://127.0.0.1:5000
+python -m backend.api    # http://127.0.0.1:5000
 ```
 
 Frontend:
@@ -60,7 +60,7 @@ The frontend needs no config locally — it falls back to `http://127.0.0.1:5000
 Run the poller by hand:
 
 ```bash
-python poll_jobs.py
+python -m backend.poller
 ```
 
 ## API
@@ -76,15 +76,19 @@ python poll_jobs.py
 ## Layout
 
 ```
-app.py                   Flask routes
-poll_jobs.py             board polling, upserts, closure detection
-write_to_database.py     every Supabase query
-score_relevance.py       MiniLM embeddings + cosine similarity
-internship_filter.py     is a title an internship? (no heavy imports)
-greenhouse_lever_check.py  board API calls
-add_companies.py         one-off seeding script
-prefetch_model.py        build-time model download
-script.sql               schema
+backend/
+  api.py                 Flask routes
+  poller.py              board polling, upserts, closure detection
+  db.py                  every Supabase query
+  scoring.py             MiniLM embeddings + cosine similarity
+  titles.py              is a title an internship? (no heavy imports)
+  boards.py              Greenhouse/Lever API calls
+scripts/
+  add_companies.py       one-off seeding
+  prefetch_model.py      build-time model download
+db/
+  schema.sql             current schema
+  migrations/            ordered migrations
 
 frontend/src/
   App.tsx                tab state, composes features
@@ -107,8 +111,8 @@ time, so changing it requires a redeploy, not a restart.
 
 **Render** (API). 512MB free tier is enough — measured ~200MB peak.
 
-- Build: `pip install -r requirements.txt && python prefetch_model.py`
-- Start: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120`
+- Build: `pip install -r requirements.txt && python -m scripts.prefetch_model`
+- Start: `gunicorn backend.api:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120`
 - Env: `SUPABASE_URL`, `SUPABASE_KEY`
 
 `--workers 1` matters: each worker loads its own copy of the model.

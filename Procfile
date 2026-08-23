@@ -3,4 +3,4 @@
 # --timeout 120: /targets scores every internship and then issues one UPDATE per
 #   posting, which can run well past gunicorn's 30s default.
 # $PORT: assigned by the host at runtime — do not hardcode 5000.
-web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+web: gunicorn backend.api:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120

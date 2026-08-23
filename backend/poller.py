@@ -1,6 +1,6 @@
-import write_to_database
-import greenhouse_lever_check
-import internship_filter
+from . import db
+from . import boards
+from . import titles
 from datetime import datetime
 
 
@@ -44,10 +44,10 @@ def poll_company(company):
 
     # 1. Make the API call using the already-known source
     if source == 'greenhouse':
-        raw_postings = greenhouse_lever_check.check_greenhouse(source_token)
+        raw_postings = boards.check_greenhouse(source_token)
         normalize_fn = normalize_greenhouse_posting
     elif source == 'lever':
-        raw_postings = greenhouse_lever_check.check_lever(source_token)
+        raw_postings = boards.check_lever(source_token)
         normalize_fn = normalize_lever_posting
     else:
         print(f"Unknown source for {company['company_name']}, skipping")
@@ -57,19 +57,19 @@ def poll_company(company):
     if raw_postings is None:
         new_failures = company.get('consecutive_failures', 0) + 1
         new_status = 'inactive' if new_failures >= 3 else 'active'
-        write_to_database.update_company_status(source_token, new_status, new_failures, checked_at)
+        db.update_company_status(source_token, new_status, new_failures, checked_at)
         print(f"{company['company_name']}: check failed ({new_failures} consecutive failures)")
         return []
 
     # 3. if success: reset failures, confirm active
-    write_to_database.update_company_status(source_token, 'active', 0, checked_at)
+    db.update_company_status(source_token, 'active', 0, checked_at)
 
     # 4. Get what's currently marked open in the database, for diffing
-    existing_postings = write_to_database.get_existing_postings_for_company(company_id)
+    existing_postings = db.get_existing_postings_for_company(company_id)
     existing_ids = {p['external_job_id'] for p in existing_postings}
 
     # 5. Upsert every posting from the fresh API response, in one batched call.
-    first_seen = write_to_database.get_first_seen_by_external_id(company_id)
+    first_seen = db.get_first_seen_by_external_id(company_id)
     rows = []
     fresh_ids = set()
     for raw_posting in raw_postings:
@@ -77,18 +77,18 @@ def poll_company(company):
         row['company_id'] = company_id
         fresh_ids.add(row['external_job_id'])
         rows.append(row)
-    write_to_database.upsert_job_postings(rows, first_seen)
+    db.upsert_job_postings(rows, first_seen)
 
     # 6. Anything that was open before but missing now has closed
     closed_ids = existing_ids - fresh_ids
-    write_to_database.close_postings(company_id, closed_ids)
+    db.close_postings(company_id, closed_ids)
 
     # 7. Anything absent from first_seen is new
     new_internships = [
         {**row, 'company_name': company['company_name']}
         for row in rows
         if row['external_job_id'] not in first_seen
-        and internship_filter.is_internship(row['title'])
+        and titles.is_internship(row['title'])
     ]
 
     print(
@@ -99,7 +99,7 @@ def poll_company(company):
 
 
 if __name__ == "__main__":
-    companies = write_to_database.get_all_active_companies()
+    companies = db.get_all_active_companies()
 
     for company in companies:
         poll_company(company)

@@ -1,5 +1,5 @@
-import greenhouse_lever_check
-import write_to_database
+from backend import boards
+from backend import db
 from datetime import datetime
 
 companies_to_try = [
@@ -25,25 +25,25 @@ companies_to_try = [
 ]
 
 for name in companies_to_try:
-    token = greenhouse_lever_check.normalize(name)
+    token = boards.normalize(name)
     
-    gh_data = greenhouse_lever_check.check_greenhouse(token)
+    gh_data = boards.check_greenhouse(token)
     if gh_data:
-        row = write_to_database.company_dict_to_row(name, {
+        row = db.company_dict_to_row(name, {
             'token': token, 'source': 'greenhouse',
             'status': 'active', 'verified_date': datetime.now()
         })
-        write_to_database.upsert_company(row)
+        db.upsert_company(row)
         print(f"{name}: found on Greenhouse")
         continue
 
-    lever_data = greenhouse_lever_check.check_lever(token)
+    lever_data = boards.check_lever(token)
     if lever_data:
-        row = write_to_database.company_dict_to_row(name, {
+        row = db.company_dict_to_row(name, {
             'token': token, 'source': 'lever',
             'status': 'active', 'verified_date': datetime.now()
         })
-        write_to_database.upsert_company(row)
+        db.upsert_company(row)
         print(f"{name}: found on Lever")
         continue
 
