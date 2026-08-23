@@ -55,6 +55,13 @@ export interface AddCompanyError {
 
 export type Tab = 'search' | 'manage'
 
+/**
+ * Which pool to search. 'fulltime' means "not an internship" — there's no
+ * employment-type column, so the title is the only signal, and contract and
+ * part-time roles land here too.
+ */
+export type RoleKind = 'internship' | 'fulltime'
+
 export type CompanyResult =
   | { kind: 'error'; text: string }
   | { kind: 'found'; company: Company }

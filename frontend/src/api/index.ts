@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AddCompanySuccess, Company, Posting, ScoredPosting } from '../types'
+import type { AddCompanySuccess, Company, Posting, RoleKind, ScoredPosting } from '../types'
 
 export { ApiError, API_BASE } from './client'
 
@@ -20,12 +20,24 @@ export function addCompany(companyName: string, signal?: AbortSignal): Promise<A
 
 
 // GET /internships — internship-titled open postings, newest first
-export function getRecentInternships(limit = 50, signal?: AbortSignal): Promise<Posting[]> {
-  return request<Posting[]>(`/internships?limit=${limit}`, { signal })
+export function getRecentPostings(
+  kind: RoleKind = 'internship',
+  limit = 50,
+  signal?: AbortSignal,
+): Promise<Posting[]> {
+  return request<Posting[]>(`/internships?kind=${kind}&limit=${limit}`, { signal })
 }
 
 
 // POST /targets — scores every internship against the target roles, returned
-export function scorePostings(targets: string[], signal?: AbortSignal): Promise<ScoredPosting[]> {
-  return request<ScoredPosting[]>('/targets', { method: 'POST', body: { targets }, signal })
+export function scorePostings(
+  targets: string[],
+  kind: RoleKind = 'internship',
+  signal?: AbortSignal,
+): Promise<ScoredPosting[]> {
+  return request<ScoredPosting[]>(`/targets?kind=${kind}`, {
+    method: 'POST',
+    body: { targets },
+    signal,
+  })
 }

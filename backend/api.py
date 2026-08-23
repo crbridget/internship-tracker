@@ -58,22 +58,55 @@ def post_targets():
     if not targets or not isinstance(targets, list): # error handling
         return jsonify({'error': 'targets must be a non-empty list of strings'}), 400
 
-    job_postings = db.get_open_internship_postings()
+    # Score the whole pool so the ranking is honest, but only return the top
+    # slice. kind=fulltime scores ~10.6k postings; returning them all is a ~5MB
+    # response and 10k DOM nodes for a list nobody scrolls.
+    limit = request.args.get('limit', default=200, type=int)
+
+    job_postings = _postings_for_kind(_requested_kind(), limit=None)
     scored = scoring.score_postings(targets, job_postings)
 
     # Scores are returned in the response and not persisted: they're specific to
     # this request's targets, so a single global column can't represent them.
 
     scored_sorted = sorted(scored, key=lambda j: j['relevance_score'], reverse=True)
-    return jsonify(scored_sorted)
+    return jsonify(scored_sorted[:limit])
+
+KINDS = ('internship', 'fulltime')
+
+
+def _requested_kind():
+    """?kind=internship|fulltime, defaulting to internship."""
+    kind = request.args.get('kind', default='internship')
+    return kind if kind in KINDS else 'internship'
+
+
+def _postings_for_kind(kind, limit=50):
+    """
+    Open postings of one kind, newest first.
+
+    limit=None means "everything of this kind", which /targets needs so it can
+    score the whole pool rather than only the newest page.
+    """
+    if kind == 'fulltime':
+        if limit is None:
+            postings = db.get_all_open_postings()
+        else:
+            postings = db.get_recent_non_internship_postings(limit)
+        matching = [j for j in postings if not scoring.is_internship(j['title'])]
+    else:
+        postings = db.get_open_internship_postings()
+        matching = [j for j in postings if scoring.is_internship(j['title'])]
+
+    # Undated postings sink rather than posing as newest.
+    matching.sort(key=lambda j: j.get('first_published') or '', reverse=True)
+    return matching if limit is None else matching[:limit]
+
 
 @app.route('/internships', methods=['GET'])
 def get_internships():
     limit = request.args.get('limit', default=50, type=int)
-    postings = db.get_open_internship_postings()
-    internships = [j for j in postings if scoring.is_internship(j['title'])]
-    internships.sort(key=lambda j: j.get('first_published') or '', reverse=True)
-    return jsonify(internships[:limit])
+    return jsonify(_postings_for_kind(_requested_kind(), limit))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

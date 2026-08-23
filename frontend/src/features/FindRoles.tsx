@@ -1,6 +1,7 @@
 import { LocationIcon, SearchIcon } from '../components/icons'
 import { JobCard } from '../components/JobCard'
 import { LoadingMessage } from '../components/LoadingMessage'
+import { RoleKindToggle } from '../components/RoleKindToggle'
 import { SearchBar, SearchDivider, SearchField } from '../components/SearchBar'
 import type { InternshipSearch } from '../hooks/useInternshipSearch'
 
@@ -11,6 +12,8 @@ interface FindRolesProps {
 
 export function FindRoles({ search, companyNames }: FindRolesProps) {
   const {
+    kind,
+    setKind,
     roleInput,
     setRoleInput,
     locationInput,
@@ -31,7 +34,11 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
       <SearchBar onSubmit={submit} loading={loading}>
         <SearchField
           icon={<SearchIcon />}
-          placeholder="Search roles — e.g. data analyst intern"
+          placeholder={
+            kind === 'internship'
+              ? 'Search roles — e.g. data analyst intern'
+              : 'Search roles — e.g. software engineer'
+          }
           value={roleInput}
           onChange={setRoleInput}
           onEnter={submit}
@@ -46,9 +53,12 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
         />
       </SearchBar>
 
-      <p className="search-hint">
-        Separate multiple roles with commas. Location filters the results as you type.
-      </p>
+      <div className="filter-row">
+        <RoleKindToggle value={kind} onChange={setKind} disabled={busy} />
+        <p className="search-hint">
+          Separate multiple roles with commas. Location filters as you type.
+        </p>
+      </div>
 
       {error && <div className="message error">{error}</div>}
 
@@ -78,17 +88,21 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
 
       {busy && (
         <LoadingMessage
-          message={loading ? 'Searching for your next paycheck...' : 'Loading internships...'}
+          message={
+            loading
+              ? 'Searching for your next paycheck...'
+              : `Loading ${kind === 'internship' ? 'internships' : 'full-time roles'}...`
+          }
         />
       )}
 
       {!busy && visible.length === 0 && (
         <div className="empty">
           {searched
-            ? `No internships matched "${roleInput.trim()}"${
+            ? `No roles matched "${roleInput.trim()}"${
                 filteringByLocation ? ` in "${locationInput.trim()}"` : ''
               }.`
-            : 'No internships found yet. Add companies to start tracking.'}
+            : `No ${kind === 'internship' ? 'internships' : 'full-time roles'} found yet. Add companies to start tracking.`}
         </div>
       )}
     </>

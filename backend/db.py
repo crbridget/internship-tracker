@@ -144,6 +144,34 @@ _INTERNSHIP_TITLE_FILTER = (
     'title.ilike.*coop*'
 )
 
+# "full-time" here means "not an internship". The database has no
+# employment-type column, so the title is the only signal — this lumps in
+# contract and part-time roles too.
+#
+# Deliberately NOT the negation of _INTERNSHIP_TITLE_FILTER: ILIKE has no word
+# boundaries, so inverting it would drop 98 real full-time roles like
+# "Internal Audit Manager" and "International Payroll Lead".
+def get_recent_non_internship_postings(limit=50, overfetch=3):
+    """
+    Newest open postings that aren't internships, ordered in the database.
+
+    Over-fetches because internships can only be excluded in Python: they're
+    ~1% of postings, so limit*3 comfortably covers the shortfall without
+    pulling the whole table.
+
+    nullsfirst=False is load-bearing: Postgres puts NULLs first on DESC, and
+    1,354 postings have no first_published — without it "newest" returns
+    undated rows.
+    """
+    rows = (supabase.table('job_postings')
+            .select('*')
+            .eq('status', 'open')
+            .order('first_published', desc=True, nullsfirst=False)
+            .limit(limit * overfetch)
+            .execute().data)
+    return rows
+
+
 def get_open_internship_postings():
     """Fetch open postings whose title plausibly names an internship."""
     return _fetch_all_rows(

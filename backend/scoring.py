@@ -23,8 +23,13 @@ def get_relevance_score(targets, jobs):
     return max_scores
 
 def score_postings(targets, job_postings):
-    """Filter to internship postings, score them against targets, return scored list."""
-    filtered = [job for job in job_postings if is_internship(job['title'])]
+    """
+    Score the given postings against the targets.
+
+    Does no filtering of its own — callers decide which postings to pass in, so
+    the same scorer serves internships and full-time roles.
+    """
+    filtered = job_postings
 
     if not filtered:
         return []

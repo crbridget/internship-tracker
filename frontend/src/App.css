@@ -197,6 +197,56 @@ h2 {
   color: var(--text-dim-green);
 }
 
+/* toggle left, hint right, stacking on narrow screens */
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.filter-row .search-hint {
+  margin: 0 4px;
+}
+
+.kind-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  box-shadow: var(--shadow);
+}
+
+.kind-toggle button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kind-toggle button:hover:not(:disabled):not(.active) {
+  color: var(--text);
+}
+
+.kind-toggle button.active {
+  background: var(--accent);
+  color: var(--brown);
+}
+
+.kind-toggle button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .results-count {
   margin: 28px 4px 12px;
   font-size: 13px;
