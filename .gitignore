@@ -13,3 +13,6 @@ poll_log.txt
 # node deps live in frontend/ only. This root entry is a backstop: a stray
 # `npm install` here once committed 2,443 files before anyone noticed.
 node_modules/
+
+.codescapes
+.claude

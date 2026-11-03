@@ -195,6 +195,20 @@ def get_recent_non_internship_postings(limit=50, overfetch=3):
     return rows
 
 
+def get_open_internship_descriptions():
+    """
+    Open internship-titled postings *with* their description, for resume
+    matching. Only ~350 rows match the title filter, so pulling descriptions
+    here is cheap, unlike across all ~11k open postings.
+    """
+    return _fetch_all_rows(
+        'job_postings',
+        {'status': 'open'},
+        or_filter=_INTERNSHIP_TITLE_FILTER,
+        columns=POSTING_COLUMNS + ', description',
+    )
+
+
 def get_open_internship_postings():
     """Fetch open postings whose title plausibly names an internship."""
     return _fetch_all_rows(
