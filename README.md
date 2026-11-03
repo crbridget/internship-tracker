@@ -1,12 +1,14 @@
 # Internship Tracker
 
-Polls Greenhouse and Lever job boards for tracked companies, stores postings in
-Supabase, and ranks internships against target roles using sentence embeddings.
+Polls Greenhouse and Lever job boards for tracked companies, stores postings and
+their descriptions in Supabase, and ranks internships two ways using sentence
+embeddings: titles against target roles (in the app), and full job descriptions
+against a resume (from the command line).
 
 **Live:** [frontend](https://internship-tracker-bety.vercel.app) ·
 [API](https://internship-tracker-nddw.onrender.com/companies)
 
-Currently tracking 63 companies and ~10,200 open postings, of which ~120 are
+Currently tracking 63 companies and ~11,800 open postings, of which ~250 are
 internships.
 
 ## Architecture
@@ -63,15 +65,69 @@ Run the poller by hand:
 python -m backend.poller
 ```
 
+Tests (no network or database access, and the model isn't loaded):
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+## Resume matching
+
+Ranks open internships by how well their **descriptions** match a resume:
+
+```bash
+python -m backend.match_resume path/to/resume.pdf --top 20   # .pdf or .txt
+```
+
+```
+0.669  Data Engineer Intern @ Coinbase
+       https://www.coinbase.com/careers/positions/...
+0.653  Quantitative Developer Intern @ Point72
+       https://boards.greenhouse.io/point72/jobs/...
+```
+
+How it works:
+
+1. **Descriptions are collected by the poller.** Greenhouse's `?content=true`
+   and Lever's `descriptionPlain` + `lists` are cleaned to plain text by
+   `backend/text.py`, which also drops company boilerplate (Greenhouse's
+   `content-intro`, `content-conclusion` and pay-transparency sections). Each
+   description is stored with a sha256 `description_hash`, and the poller only
+   rewrites descriptions whose hash changed.
+2. **Chunk.** The resume and each description are split into ~150-word chunks.
+   MiniLM reads only 256 tokens and silently ignores the rest, and the median
+   description is ~550 words.
+3. **Embed and pool.** All chunks are encoded in one batch. A document's vector
+   is the mean of its chunk vectors, renormalized to unit length.
+4. **Score.** Cosine similarity between the resume vector and each posting's
+   vector, highest first.
+
+Everything is computed live, which takes ~13s for ~250 internships. Nothing about the resume
+is stored.
+
+Limitations:
+
+- **Live embedding doesn't scale to all postings.** Covering ~11.8k full-time
+  roles would mean precomputing description embeddings offline and ranking in
+  Postgres with pgvector.
+- **Whole-document similarity picks up a company's theme, not just the role.** A
+  data/ML resume ranks a Databricks *Product Management* internship near the
+  top. Blending in the title score, or comparing best-matching chunks instead
+  of means, would sharpen it.
+- **Scores fall in a narrow band** (~0.55–0.67 at the top), so they're only
+  meaningful as a ranking.
+- **Scanned PDFs have no extractable text.** Use a `.txt` copy.
+
 ## API
 
 | Method | Route | Returns |
 |---|---|---|
 | GET | `/companies` | every company with `status='active'` |
 | POST | `/companies` | verifies a name against Greenhouse then Lever, inserts on a hit. `{message, source}`, or 404 if on neither |
-| GET | `/internships?limit=50` | internship-titled open postings, newest first |
-| GET | `/postings` | **all** open postings — ~10k rows, ~5MB. Unused by the frontend |
-| POST | `/targets` | `{targets: string[]}` → postings scored by cosine similarity, descending |
+| GET | `/internships?kind=internship&limit=50` | open postings of one kind (`internship` or `fulltime`), newest first |
+| GET | `/postings` | **all** open postings — ~11.8k rows, ~5MB. Unused by the frontend |
+| POST | `/targets?kind=internship&limit=200` | `{targets: string[]}` → postings scored by title similarity, descending |
 
 ## Layout
 
@@ -80,9 +136,12 @@ backend/
   api.py                 Flask routes
   poller.py              board polling, upserts, closure detection
   db.py                  every Supabase query
-  scoring.py             MiniLM embeddings + cosine similarity
+  scoring.py             MiniLM embeddings + cosine similarity (titles)
+  match_resume.py        CLI: resume vs. job descriptions
+  text.py                description HTML -> plain text, hashing (no heavy imports)
   titles.py              is a title an internship? (no heavy imports)
   boards.py              Greenhouse/Lever API calls
+tests/                   pytest suite; conftest.py fakes Supabase and the model
 scripts/
   add_companies.py       one-off seeding
   prefetch_model.py      build-time model download
