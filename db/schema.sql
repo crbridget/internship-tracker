@@ -16,6 +16,7 @@ CREATE TABLE public.job_postings (
   title character varying NOT NULL,
   location character varying,
   description text,
+  description_hash character varying,
   apply_url character varying NOT NULL,
   first_published timestamp without time zone,
   source_updated_at timestamp without time zone,

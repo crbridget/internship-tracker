@@ -12,7 +12,16 @@ key = os.environ.get("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 
-def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
+# Columns the API and frontend need from job_postings. Deliberately excludes
+# description (~6KB each): select('*') on the ~11k open postings would pull
+# ~70MB per /targets request. Read descriptions by name where they're needed.
+POSTING_COLUMNS = (
+    'id, company_id, external_job_id, title, location, apply_url, '
+    'first_published, source_updated_at, first_seen_at, last_seen_at, status'
+)
+
+
+def _fetch_all_rows(table, filters, page_size=1000, or_filter=None, columns='*'):
     """
     Supabase limits at 1000 rows per request.
     This function loops through every page until all the data is fetched.
@@ -20,7 +29,7 @@ def _fetch_all_rows(table, filters, page_size=1000, or_filter=None):
     rows = []
     offset = 0
     while True:
-        query = supabase.table(table).select('*')
+        query = supabase.table(table).select(columns)
         for column, value in filters.items():
             query = query.eq(column, value)
         if or_filter:
@@ -78,24 +87,26 @@ def upsert_job_posting(job_posting):
     return response
 
 
-def get_first_seen_by_external_id(company_id):
+def get_known_postings(company_id):
     """
-    Takes company ID and returns look up, mapping external_job_id -> first_seen_at for every posting.
+    Every posting stored for a company, open or closed:
+    external_job_id -> {'first_seen_at', 'description_hash'}.
+
+    first_seen_at keeps re-upserts from resetting it; description_hash lets the
+    poller skip rewriting descriptions that haven't changed.
     """
-    seen = {}
-    offset = 0
-    page_size = 1000
-    while True:
-        batch = (supabase.table('job_postings')
-                 .select('external_job_id, first_seen_at')
-                 .eq('company_id', company_id)
-                 .range(offset, offset + page_size - 1)
-                 .execute().data)
-        for row in batch:
-            seen[row['external_job_id']] = row['first_seen_at']
-        if len(batch) < page_size:
-            return seen
-        offset += page_size
+    rows = _fetch_all_rows(
+        'job_postings',
+        {'company_id': company_id},
+        columns='external_job_id, first_seen_at, description_hash',
+    )
+    return {
+        row['external_job_id']: {
+            'first_seen_at': row['first_seen_at'],
+            'description_hash': row['description_hash'],
+        }
+        for row in rows
+    }
 
 
 def upsert_job_postings(job_postings, first_seen_by_id=None, chunk_size=500):
@@ -111,11 +122,19 @@ def upsert_job_postings(job_postings, first_seen_by_id=None, chunk_size=500):
         posting['last_seen_at'] = now
         posting['first_seen_at'] = known.get(posting['external_job_id'], now)
 
-    for i in range(0, len(job_postings), chunk_size):
-        supabase.table('job_postings').upsert(
-            job_postings[i:i + chunk_size],
-            on_conflict='company_id,external_job_id',
-        ).execute()
+    # Rows don't all carry the same columns (the poller omits description when
+    # it's unchanged). A bulk upsert with mixed keys can NULL the missing ones,
+    # so each request only ever holds rows with identical keys.
+    groups = {}
+    for posting in job_postings:
+        groups.setdefault(frozenset(posting), []).append(posting)
+
+    for rows in groups.values():
+        for i in range(0, len(rows), chunk_size):
+            supabase.table('job_postings').upsert(
+                rows[i:i + chunk_size],
+                on_conflict='company_id,external_job_id',
+            ).execute()
 
 
 def close_postings(company_id, external_job_ids):
@@ -130,12 +149,16 @@ def close_postings(company_id, external_job_ids):
 
 
 def get_existing_postings_for_company(company_id):
-    """ Fetch all open job postings for a specific company"""
-    return _fetch_all_rows('job_postings', {'company_id': company_id, 'status': 'open'})
+    """ Fetch the external ids of all open job postings for a specific company"""
+    return _fetch_all_rows(
+        'job_postings',
+        {'company_id': company_id, 'status': 'open'},
+        columns='external_job_id',
+    )
 
 def get_all_open_postings():
     """Fetch all open job postings, across all companies"""
-    return _fetch_all_rows('job_postings', {'status': 'open'})
+    return _fetch_all_rows('job_postings', {'status': 'open'}, columns=POSTING_COLUMNS)
 
 
 _INTERNSHIP_TITLE_FILTER = (
@@ -164,7 +187,7 @@ def get_recent_non_internship_postings(limit=50, overfetch=3):
     undated rows.
     """
     rows = (supabase.table('job_postings')
-            .select('*')
+            .select(POSTING_COLUMNS)
             .eq('status', 'open')
             .order('first_published', desc=True, nullsfirst=False)
             .limit(limit * overfetch)
@@ -178,6 +201,7 @@ def get_open_internship_postings():
         'job_postings',
         {'status': 'open'},
         or_filter=_INTERNSHIP_TITLE_FILTER,
+        columns=POSTING_COLUMNS,
     )
 
 

@@ -13,14 +13,19 @@ def normalize(company_name):
     """
     return company_name.lower().replace(' ', '')
     
-def check_greenhouse(board_token):
-    """ 
-    Make an API call to greenhouse job board using 
+def check_greenhouse(board_token, content=False):
+    """
+    Make an API call to greenhouse job board using
     the normalized comapny name as the board token.
-    input: company_name (str), board_token (str)
+    input: board_token (str), content (bool) — include each job's description
     output: list of job postings (list) if found, otherwise None
+
+    content=True is much heavier (~132MB across all tracked boards vs a few MB),
+    so only the poller asks for it; existence checks don't need it.
     """
     url = f'https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs'
+    if content:
+        url += '?content=true'
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()['jobs']

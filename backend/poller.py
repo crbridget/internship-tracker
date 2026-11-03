@@ -1,6 +1,7 @@
 from . import db
 from . import boards
 from . import titles
+from . import text
 from datetime import datetime
 
 
@@ -13,7 +14,8 @@ def normalize_greenhouse_posting(posting):
         'apply_url': posting.get('absolute_url'),
         'first_published': posting.get('first_published'),
         'source_updated_at': posting.get('updated_at'),
-        'status': 'open'
+        'status': 'open',
+        'description': text.greenhouse_description(posting),
     }
 
 
@@ -26,7 +28,8 @@ def normalize_lever_posting(posting):
         'apply_url': posting.get('hostedUrl'),
         'first_published': None,  # lever doesn't provide this
         'source_updated_at': None,
-        'status': 'open'
+        'status': 'open',
+        'description': text.lever_description(posting),
     }
 
 
@@ -44,7 +47,7 @@ def poll_company(company):
 
     # 1. Make the API call using the already-known source
     if source == 'greenhouse':
-        raw_postings = boards.check_greenhouse(source_token)
+        raw_postings = boards.check_greenhouse(source_token, content=True)
         normalize_fn = normalize_greenhouse_posting
     elif source == 'lever':
         raw_postings = boards.check_lever(source_token)
@@ -68,14 +71,24 @@ def poll_company(company):
     existing_postings = db.get_existing_postings_for_company(company_id)
     existing_ids = {p['external_job_id'] for p in existing_postings}
 
-    # 5. Upsert every posting from the fresh API response, in one batched call.
-    first_seen = db.get_first_seen_by_external_id(company_id)
+    # 5. Upsert every posting from the fresh API response. Descriptions are
+    #    only written when new or changed: they're ~6KB each, and rewriting all
+    #    ~11k every 30 minutes would be ~60MB of identical writes per poll.
+    known = db.get_known_postings(company_id)
+    first_seen = {ext_id: k['first_seen_at'] for ext_id, k in known.items()}
     rows = []
     fresh_ids = set()
     for raw_posting in raw_postings:
         row = normalize_fn(raw_posting)
         row['company_id'] = company_id
         fresh_ids.add(row['external_job_id'])
+
+        new_hash = text.description_hash(row['description'])
+        stored = known.get(row['external_job_id'])
+        if stored is not None and stored['description_hash'] == new_hash:
+            del row['description']  # unchanged: leave the stored copy alone
+        else:
+            row['description_hash'] = new_hash
         rows.append(row)
     db.upsert_job_postings(rows, first_seen)
 

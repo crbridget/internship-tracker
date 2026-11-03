@@ -36,7 +36,8 @@ export interface Posting {
   // Optional, not nullable: no longer a database column. 
   relevance_score?: number
 
-  description: string | null
+  // description is deliberately absent: the API never selects it (see
+  // POSTING_COLUMNS in backend/db.py), it's ~6KB per posting.
 }
 
 /** /targets scores everything it returns, so the score is guaranteed there. */
