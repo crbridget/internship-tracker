@@ -63,7 +63,11 @@ def embed_documents(texts):
     dim = model.get_embedding_dimension()
     sums = np.zeros((len(texts), dim), dtype='float32')
     if chunks:
-        vectors = model.encode(chunks, batch_size=64, normalize_embeddings=True)
+        # No normalize_embeddings=True: all-MiniLM-L6-v2 ends in its own
+        # Normalize layer, so chunk vectors already have unit length and each
+        # chunk counts equally in the mean. A model without that layer would
+        # need it back.
+        vectors = model.encode(chunks, batch_size=64)
         np.add.at(sums, np.array(owners), vectors)
 
     norms = np.linalg.norm(sums, axis=1, keepdims=True)

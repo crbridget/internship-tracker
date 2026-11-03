@@ -7,7 +7,8 @@ from backend import match_resume
 class FakeModel:
     """
     Embeds by keyword: dimension 0 counts 'python', dimension 1 counts 'sales'.
-    Records what it was asked to encode.
+    Always returns unit vectors, like all-MiniLM-L6-v2's built-in Normalize
+    layer. Records what it was asked to encode.
     """
 
     def __init__(self):
@@ -16,12 +17,11 @@ class FakeModel:
     def get_embedding_dimension(self):
         return 2
 
-    def encode(self, chunks, batch_size=None, normalize_embeddings=False):
+    def encode(self, chunks, batch_size=None):
         self.encoded.append(list(chunks))
         vecs = np.array([[c.count('python'), c.count('sales')] for c in chunks], dtype='float32')
-        if normalize_embeddings:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            vecs = vecs / np.where(norms == 0, 1, norms)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        vecs = vecs / np.where(norms == 0, 1, norms)
         return vecs
 
 
