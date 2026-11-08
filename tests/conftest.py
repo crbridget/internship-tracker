@@ -16,7 +16,7 @@ os.environ['SUPABASE_KEY'] = 'test-key'
 
 import pytest 
 
-from backend import db  
+from backend import auth, db
 
 
 class FakeResult:
@@ -62,9 +62,25 @@ def fake_supabase(monkeypatch):
     """Every test gets a recording fake; nothing talks to a real database."""
     client = FakeSupabase()
     monkeypatch.setattr(db, 'supabase', client)
-    # Cached across calls in production; a test's fake must not see another's.
-    db.get_default_user_id.cache_clear()
+    # Cached across calls in production; a test must not see another's.
+    auth.user_id_for.cache_clear()
+    auth._config.cache_clear()
     return client
+
+
+TEST_USER_ID = 7
+
+
+@pytest.fixture
+def signed_in(monkeypatch):
+    """
+    Any bearer token is accepted and resolves to users.id TEST_USER_ID.
+    Token verification itself is covered by test_auth.py.
+    """
+    monkeypatch.setattr(auth, 'verify_token',
+                        lambda token: {'sub': 'user_test', 'email': 'me@example.com'})
+    monkeypatch.setattr(auth, 'user_id_for', lambda clerk_id, email: TEST_USER_ID)
+    return TEST_USER_ID
 
 
 @pytest.fixture

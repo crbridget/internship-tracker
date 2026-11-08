@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SignInButton } from '@clerk/react'
 import { JobCard } from '../components/JobCard'
 import { LoadingMessage } from '../components/LoadingMessage'
 import { StatusSelect } from '../components/StatusSelect'
@@ -15,8 +16,19 @@ interface ApplicationsProps {
 type Filter = ApplicationStatus | 'all'
 
 export function Applications({ applications, companyNames }: ApplicationsProps) {
-  const { all, loading, error, setStatus, setNotes } = applications
+  const { signedIn, all, loading, error, setStatus, setNotes } = applications
   const [filter, setFilter] = useState<Filter>('all')
+
+  if (!signedIn) {
+    return (
+      <div className="empty signed-out">
+        <p>Sign in to track where you've applied, with status and notes for each role.</p>
+        <SignInButton mode="modal">
+          <button type="button" className="search-button">Sign in</button>
+        </SignInButton>
+      </div>
+    )
+  }
 
   const counts = new Map<Filter, number>([['all', all.length]])
   for (const a of all) counts.set(a.status, (counts.get(a.status) ?? 0) + 1)

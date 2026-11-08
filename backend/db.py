@@ -1,6 +1,5 @@
 
 from supabase import create_client
-import functools
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -222,17 +221,34 @@ def get_open_internship_postings():
 
 # ---- users -----------------------------------------------------------------
 
-@functools.cache # first time a function runs, saves the result
-def get_default_user_id():
-    """
-    The id of the app's single user, until auth exists to say who's asking.
+# Callers go through backend.auth.user_id_for, which decides when to link or
+# create; these are the raw queries.
 
-    Cached: it can't change while the process runs, and every /applications
-    request would otherwise spend a round trip on it.
-    """
-    rows = supabase.table('users').select('id').order('id').limit(1).execute().data
-    if not rows:
-        raise RuntimeError('No row in users. Run db/migrations/001_multi_user.sql.')
+def get_user_id_by_clerk_id(clerk_user_id):
+    """users.id for a Clerk account, or None if it isn't linked yet."""
+    rows = (supabase.table('users').select('id')
+            .eq('clerk_user_id', clerk_user_id).execute().data)
+    return rows[0]['id'] if rows else None
+
+
+def get_user_by_email(email):
+    """{'id', 'clerk_user_id'} for an email, or None. Emails are stored lowercase."""
+    rows = (supabase.table('users').select('id, clerk_user_id')
+            .eq('email', email).execute().data)
+    return rows[0] if rows else None
+
+
+def set_clerk_user_id(user_id, clerk_user_id):
+    """Link an existing user row to a Clerk account."""
+    (supabase.table('users').update({'clerk_user_id': clerk_user_id})
+     .eq('id', user_id).execute())
+
+
+def create_user(email, clerk_user_id):
+    """Insert a user row and return its id."""
+    rows = (supabase.table('users')
+            .insert({'email': email, 'clerk_user_id': clerk_user_id})
+            .execute().data)
     return rows[0]['id']
 
 

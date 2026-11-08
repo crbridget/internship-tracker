@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@clerk/react'
 import { addCompany, getCompanies } from '../api'
 import { errorText, isAbort } from '../lib/errors'
 import type { Company, CompanyResult } from '../types'
@@ -21,6 +22,7 @@ export function useCompanies(): CompaniesState {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<CompanyResult | null>(null)
+  const { isSignedIn, getToken } = useAuth()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -56,10 +58,15 @@ export function useCompanies(): CompaniesState {
       return
     }
 
+    if (!isSignedIn) {
+      setResult({ kind: 'error', text: 'Sign in to add companies.' })
+      return
+    }
+
     setLoading(true)
     setResult(null)
     try {
-      const added = await addCompany(name)
+      const added = await addCompany(name, await getToken())
       const refreshed = await getCompanies()
       setAll(refreshed)
       setResult({

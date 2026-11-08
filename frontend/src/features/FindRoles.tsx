@@ -3,7 +3,7 @@ import { JobCard } from '../components/JobCard'
 import { LoadingMessage } from '../components/LoadingMessage'
 import { RoleKindToggle } from '../components/RoleKindToggle'
 import { SearchBar, SearchDivider, SearchField } from '../components/SearchBar'
-import { StatusSelect } from '../components/StatusSelect'
+import { TrackButton } from '../components/TrackButton'
 import type { ApplicationsState } from '../hooks/useApplications'
 import type { InternshipSearch } from '../hooks/useInternshipSearch'
 
@@ -86,7 +86,8 @@ export function FindRoles({ search, companyNames, applications }: FindRolesProps
               companyName={companyNames.get(job.company_id)}
               score={searched ? job.relevance_score ?? null : null}
               actions={
-                <StatusSelect
+                <TrackButton
+                  signedIn={applications.signedIn}
                   status={applications.byPostingId.get(job.id)?.status ?? null}
                   onChange={status => applications.setStatus(job, status)}
                 />

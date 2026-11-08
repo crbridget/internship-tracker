@@ -1,5 +1,7 @@
 import pytest
 
+from tests.conftest import TEST_USER_ID
+
 
 def posting(pid, title, published='2026-10-01'):
     return {'id': pid, 'title': title, 'first_published': published}
@@ -86,6 +88,10 @@ class TestTargets:
 
 
 class TestAddCompany:
+    @pytest.fixture(autouse=True)
+    def _signed_in(self, client, signed_in):
+        client.environ_base['HTTP_AUTHORIZATION'] = 'Bearer test-token'
+
     @pytest.mark.parametrize('body', [None, {}, {'company_name': '   '}, {'company_name': 42}])
     def test_rejects_invalid_company_name(self, client, api, monkeypatch, body):
         monkeypatch.setattr(api.boards, 'check_greenhouse', lambda token: pytest.fail('should not call'))
@@ -131,7 +137,11 @@ class TestAddCompany:
 
 
 class TestApplications:
-    USER = 7
+    USER = TEST_USER_ID
+
+    @pytest.fixture(autouse=True)
+    def _signed_in(self, client, signed_in):
+        client.environ_base['HTTP_AUTHORIZATION'] = 'Bearer test-token'
 
     @pytest.fixture
     def store(self, api, monkeypatch):
@@ -140,7 +150,6 @@ class TestApplications:
         Upserts merge like PostgREST does: only the columns sent are changed.
         """
         rows = {}
-        monkeypatch.setattr(api.db, 'get_default_user_id', lambda: self.USER)
         monkeypatch.setattr(api.db, 'get_application',
                             lambda user_id, pid: rows.get(pid))
 
@@ -211,3 +220,46 @@ class TestApplications:
         monkeypatch.setattr(api.db, 'get_applications', lambda user_id: seen.append(user_id) or [])
         assert client.get('/applications').get_json() == []
         assert seen == [self.USER]
+
+
+class TestSignInRequired:
+    """Without a valid token, private routes refuse before doing any work."""
+
+    @pytest.mark.parametrize('method, path, body', [
+        ('get', '/applications', None),
+        ('put', '/applications/1', {'status': 'saved'}),
+        ('delete', '/applications/1', None),
+        ('post', '/companies', {'company_name': 'Big Co'}),
+    ])
+    @pytest.mark.parametrize('header', [None, 'test-token', 'Basic abc', 'Bearer ', 'Bearer bad'])
+    def test_private_routes_reject_missing_or_bad_tokens(
+        self, client, api, monkeypatch, method, path, body, header
+    ):
+        from backend.auth import AuthError
+
+        def reject(token):
+            raise AuthError('sign-in expired or invalid, please sign in again')
+
+        monkeypatch.setattr(api.auth, 'verify_token', reject)
+        for name in ('get_applications', 'upsert_application', 'delete_application', 'upsert_company'):
+            monkeypatch.setattr(api.db, name, lambda *a: pytest.fail(f'{name} called'))
+
+        headers = {'Authorization': header} if header is not None else {}
+        response = getattr(client, method)(path, json=body, headers=headers)
+
+        assert response.status_code == 401
+        assert isinstance(response.get_json()['error'], str)
+
+    def test_public_routes_need_no_token(self, client):
+        assert client.get('/internships').status_code == 200
+        assert client.post('/targets', json={'targets': ['data']}).status_code == 200
+
+    def test_auth_errors_keep_their_status(self, client, api, monkeypatch):
+        from backend.auth import AuthError
+
+        def unconfigured(token):
+            raise AuthError('sign-in is not configured on the server', 503)
+
+        monkeypatch.setattr(api.auth, 'verify_token', unconfigured)
+        response = client.get('/applications', headers={'Authorization': 'Bearer x'})
+        assert response.status_code == 503

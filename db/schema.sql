@@ -1,4 +1,4 @@
--- Current schema, after migrations 001–005. Reference only: change the
+-- Current schema, after migrations 001–006. Reference only: change the
 -- database through a new file in migrations/, then mirror it here.
 
 CREATE TABLE public.companies (
@@ -34,7 +34,8 @@ CREATE TABLE public.job_postings (
 CREATE TABLE public.users (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   email text NOT NULL UNIQUE,
-  auth_user_id uuid UNIQUE,
+  auth_user_id uuid UNIQUE,      -- unused; meant for Supabase Auth
+  clerk_user_id text UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.user_companies (

@@ -1,7 +1,8 @@
-from flask import Flask, abort, jsonify, make_response, request
+from flask import Flask, abort, g, jsonify, make_response, request
 from flask_cors import CORS
 from postgrest.exceptions import APIError
 from pydantic import ValidationError
+from . import auth
 from . import db
 from . import boards
 from . import models
@@ -36,6 +37,7 @@ def get_companies():
     return jsonify(companies)
 
 @app.route('/companies', methods=['POST'])
+@auth.require_user
 def post_companies():
     company_name = _body(models.AddCompanyRequest).company_name
 
@@ -119,19 +121,18 @@ def get_internships():
 
 
 def _current_user_id():
-    """
-    Who's asking. There's no auth yet, so it's always the one user; this is the
-    single place to change once there is.
-    """
-    return db.get_default_user_id()
+    """The signed-in caller's users.id. Only valid under @auth.require_user."""
+    return g.user_id
 
 
 @app.route('/applications', methods=['GET'])
+@auth.require_user
 def get_applications():
     return jsonify(db.get_applications(_current_user_id()))
 
 
 @app.route('/applications/<int:posting_id>', methods=['PUT'])
+@auth.require_user
 def put_application(posting_id):
     """Start tracking a posting, or change its status/notes."""
     update = _body(models.ApplicationUpdate)
@@ -160,6 +161,7 @@ def put_application(posting_id):
 
 
 @app.route('/applications/<int:posting_id>', methods=['DELETE'])
+@auth.require_user
 def delete_application(posting_id):
     """Stop tracking a posting."""
     if not db.delete_application(_current_user_id(), posting_id):

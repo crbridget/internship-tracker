@@ -18,11 +18,16 @@ export function getCompanies(signal?: AbortSignal): Promise<Company[]> {
 }
 
 
-// POST /companies — checks Greenhouse then Lever, inserting on a hit
-export function addCompany(companyName: string, signal?: AbortSignal): Promise<AddCompanySuccess> {
+// POST /companies — checks Greenhouse then Lever, inserting on a hit. Requires sign-in.
+export function addCompany(
+  companyName: string,
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<AddCompanySuccess> {
   return request<AddCompanySuccess>('/companies', {
     method: 'POST',
     body: { company_name: companyName },
+    token,
     signal,
   })
 }
@@ -52,9 +57,11 @@ export function scorePostings(
 }
 
 
+// The /applications routes all require sign-in and act on the signed-in user.
+
 // GET /applications — every tracked posting, most recently updated first
-export function getApplications(signal?: AbortSignal): Promise<Application[]> {
-  return request<Application[]>('/applications', { signal })
+export function getApplications(token: string | null, signal?: AbortSignal): Promise<Application[]> {
+  return request<Application[]>('/applications', { token, signal })
 }
 
 
@@ -62,17 +69,23 @@ export function getApplications(signal?: AbortSignal): Promise<Application[]> {
 export function saveApplication(
   postingId: number,
   update: ApplicationUpdate,
+  token: string | null,
   signal?: AbortSignal,
 ): Promise<ApplicationRecord> {
   return request<ApplicationRecord>(`/applications/${postingId}`, {
     method: 'PUT',
     body: update,
+    token,
     signal,
   })
 }
 
 
 // DELETE /applications/:postingId — stop tracking a posting
-export function deleteApplication(postingId: number, signal?: AbortSignal): Promise<void> {
-  return request<void>(`/applications/${postingId}`, { method: 'DELETE', signal })
+export function deleteApplication(
+  postingId: number,
+  token: string | null,
+  signal?: AbortSignal,
+): Promise<void> {
+  return request<void>(`/applications/${postingId}`, { method: 'DELETE', token, signal })
 }

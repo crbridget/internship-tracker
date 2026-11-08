@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@clerk/react'
 import { deleteApplication, getApplications, saveApplication } from '../api'
 import { errorText, isAbort } from '../lib/errors'
 import type { Application, ApplicationStatus, ApplicationUpdate, Posting } from '../types'
 
 export interface ApplicationsState {
+  /** Tracking needs an account; signed-out visitors can still browse. */
+  signedIn: boolean
   /** Most recently updated first, as of load. Edits keep their position. */
   all: Application[]
   byPostingId: Map<number, Application>
@@ -14,42 +17,57 @@ export interface ApplicationsState {
   setNotes: (application: Application, notes: string) => Promise<void>
 }
 
+/** Rows tagged with whose they are, so a sign-out or account switch can't show stale ones. */
+interface Loaded {
+  userId: string
+  rows: Application[]
+}
+
 /**
- * Tracked postings, shared by Find Roles (status menu on every card) and
- * My Applications. Edits are optimistic: the UI changes immediately and rolls
- * back if the server refuses.
+ * The signed-in user's tracked postings, shared by Find Roles (status menu on
+ * every card) and My Applications. Edits are optimistic: the UI changes
+ * immediately and rolls back if the server refuses.
  */
 export function useApplications(): ApplicationsState {
-  const [all, setAll] = useState<Application[]>([])
-  const [loading, setLoading] = useState(true)
+  const { isLoaded, isSignedIn, userId, getToken } = useAuth()
+  const signedIn = Boolean(isLoaded && isSignedIn && userId)
+
+  const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [error, setError] = useState('')
 
+  // Refetch whenever the signed-in account changes.
   useEffect(() => {
+    if (!signedIn || !userId) return
     const controller = new AbortController()
-    getApplications(controller.signal)
-      .then(setAll)
+    getToken()
+      .then(token => getApplications(token, controller.signal))
+      .then(rows => setLoaded({ userId, rows }))
       .catch(err => {
         if (isAbort(err)) return
         console.error('Could not load applications:', err)
         setError(errorText(err))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
+        setLoaded({ userId, rows: [] })
       })
     return () => controller.abort()
-  }, [])
+    // getToken is a new function each render; the account is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, userId])
 
+  const current = signedIn && loaded?.userId === userId ? loaded : null
+  const all = useMemo(() => current?.rows ?? [], [current])
   const byPostingId = useMemo(() => new Map(all.map(a => [a.posting_id, a])), [all])
 
   /** Replace one posting's entry in place (new ones go first); undefined removes it. */
   const put = (postingId: number, next: Application | undefined) =>
-    setAll(prev => {
-      const index = prev.findIndex(a => a.posting_id === postingId)
-      if (!next) return prev.filter(a => a.posting_id !== postingId)
-      if (index === -1) return [next, ...prev]
-      const copy = [...prev]
+    setLoaded(prev => {
+      if (!prev) return prev
+      const rows = prev.rows
+      const index = rows.findIndex(a => a.posting_id === postingId)
+      if (!next) return { ...prev, rows: rows.filter(a => a.posting_id !== postingId) }
+      if (index === -1) return { ...prev, rows: [next, ...rows] }
+      const copy = [...rows]
       copy[index] = next
-      return copy
+      return { ...prev, rows: copy }
     })
 
   const save = async (posting: Posting, change: ApplicationUpdate) => {
@@ -67,7 +85,7 @@ export function useApplications(): ApplicationsState {
     })
     setError('')
     try {
-      const stored = await saveApplication(posting.id, change)
+      const stored = await saveApplication(posting.id, change, await getToken())
       put(posting.id, { ...stored, posting })
     } catch (err) {
       console.error('Could not save application:', err)
@@ -82,7 +100,7 @@ export function useApplications(): ApplicationsState {
     put(posting.id, undefined)
     setError('')
     try {
-      await deleteApplication(posting.id)
+      await deleteApplication(posting.id, await getToken())
     } catch (err) {
       console.error('Could not untrack posting:', err)
       put(posting.id, previous)
@@ -90,11 +108,21 @@ export function useApplications(): ApplicationsState {
     }
   }
 
-  const setStatus = (posting: Posting, status: ApplicationStatus | null) =>
-    status === null ? remove(posting) : save(posting, { status })
+  const setStatus = async (posting: Posting, status: ApplicationStatus | null) => {
+    if (!signedIn) return
+    await (status === null ? remove(posting) : save(posting, { status }))
+  }
 
   const setNotes = (application: Application, notes: string) =>
     save(application.posting, { status: application.status, notes: notes.trim() || null })
 
-  return { all, byPostingId, loading, error, setStatus, setNotes }
+  return {
+    signedIn,
+    all,
+    byPostingId,
+    loading: signedIn && !current,
+    error: signedIn ? error : '',
+    setStatus,
+    setNotes,
+  }
 }

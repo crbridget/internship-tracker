@@ -55,9 +55,41 @@ npm run dev              # http://localhost:5173
 ```
 SUPABASE_URL=...
 SUPABASE_KEY=...
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 ```
 
-The frontend needs no config locally — it falls back to `http://127.0.0.1:5000`.
+`frontend/.env`, for the frontend (both `.env` files are gitignored):
+
+```
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+```
+
+The API URL falls back to `http://127.0.0.1:5000` locally.
+
+### Sign-in (Clerk)
+
+Browsing and searching are public. Tracking applications and adding companies
+require signing in with [Clerk](https://clerk.com).
+
+One-time setup in the Clerk dashboard:
+
+1. Create an application. Copy its **publishable key** (`pk_test_...`) into
+   both `.env` files above, and into Render and Vercel (see Deployment).
+2. **Sessions → Customize session token**, add:
+   ```json
+   { "email": "{{user.primary_email_address}}" }
+   ```
+   The API uses it to create your `users` row on first sign-in, or to link an
+   existing row with the same email. Without it, first sign-in fails with a 403
+   that says so.
+
+How it works: the frontend sends Clerk's session token as
+`Authorization: Bearer <token>`. `backend/auth.py` verifies its signature
+against Clerk's public keys (fetched once, then cached), its expiry, its issuer
+(decoded from the publishable key) and its `azp` against
+`CLERK_AUTHORIZED_PARTIES`. No secret key is needed. Requests without a valid
+token get a 401 from the private routes.
 
 Run the poller by hand:
 
@@ -124,23 +156,24 @@ Limitations:
 | Method | Route | Returns |
 |---|---|---|
 | GET | `/companies` | every company with `status='active'` |
-| POST | `/companies` | verifies a name against Greenhouse then Lever, inserts on a hit. `{message, source}`, or 404 if on neither |
+| POST | `/companies` 🔒 | verifies a name against Greenhouse then Lever, inserts on a hit. `{message, source}`, or 404 if on neither |
 | GET | `/internships?kind=internship&limit=50` | open postings of one kind (`internship` or `fulltime`), newest first |
 | GET | `/postings` | **all** open postings — ~11.8k rows, ~5MB. Unused by the frontend |
 | POST | `/targets?kind=internship&limit=200` | `{targets: string[]}` → postings scored by title similarity, descending |
-| GET | `/applications` | tracked postings with status, notes, `applied_at`, and the posting embedded, most recently updated first |
-| PUT | `/applications/<posting_id>` | `{status, notes?, applied_at?}` → tracks or updates. Status is `saved`, `applied`, `interviewing`, `offer` or `rejected`. `applied_at` is set to today the first time status leaves `saved`. Omitted fields are kept, `null` clears. 201 on create, 404 for an unknown posting |
-| DELETE | `/applications/<posting_id>` | stops tracking. 204, or 404 if not tracked |
+| GET | `/applications` 🔒 | tracked postings with status, notes, `applied_at`, and the posting embedded, most recently updated first |
+| PUT | `/applications/<posting_id>` 🔒 | `{status, notes?, applied_at?}` → tracks or updates. Status is `saved`, `applied`, `interviewing`, `offer` or `rejected`. `applied_at` is set to today the first time status leaves `saved`. Omitted fields are kept, `null` clears. 201 on create, 404 for an unknown posting |
+| DELETE | `/applications/<posting_id>` 🔒 | stops tracking. 204, or 404 if not tracked |
 
-There's no auth: the application routes act as the single row in `users`
-(see `_current_user_id` in `api.py`), so anyone with the API URL can read and
-change them.
+🔒 requires sign-in (see [Sign-in](#sign-in-clerk)). The application routes
+act on the signed-in user's rows only. Bad request bodies get a 400 with
+`{error}`.
 
 ## Layout
 
 ```
 backend/
   api.py                 Flask routes
+  auth.py                Clerk token verification, @require_user
   poller.py              board polling, upserts, closure detection
   db.py                  every Supabase query
   models.py              pydantic request bodies
@@ -161,7 +194,7 @@ frontend/src/
   App.tsx                tab state, composes features
   features/              FindRoles, Applications, AddCompanies
   hooks/                 useInternshipSearch, useApplications, useCompanies — state lives here
-  components/            presentational only
+  components/            presentational only (TrackButton, StatusSelect use Clerk's sign-in button)
   api/client.ts          transport: base URL, ApiError, request<T>
   api/index.ts           the four endpoint functions
   types.ts               API shapes
@@ -173,14 +206,17 @@ frontend/src/
 ## Deployment
 
 **Vercel** (frontend). Root Directory must be `frontend`; leave every command
-override off. Set `VITE_API_URL` to the Render URL. Vite inlines it at *build*
+override off. Set `VITE_API_URL` to the Render URL and `VITE_CLERK_PUBLISHABLE_KEY` to the
+Clerk publishable key. Vite inlines it at *build*
 time, so changing it requires a redeploy, not a restart.
 
 **Render** (API). 512MB free tier is enough — measured ~200MB peak.
 
 - Build: `pip install -r requirements.txt && python -m scripts.prefetch_model`
 - Start: `gunicorn backend.api:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120`
-- Env: `SUPABASE_URL`, `SUPABASE_KEY`
+- Env: `SUPABASE_URL`, `SUPABASE_KEY`, `CLERK_PUBLISHABLE_KEY`,
+  `CLERK_AUTHORIZED_PARTIES` (the Vercel URL, e.g.
+  `https://internship-tracker-bety.vercel.app`; comma-separate several)
 
 `--workers 1` matters: each worker loads its own copy of the model.
 `--timeout 120` matters: `/targets` can exceed gunicorn's 30s default.

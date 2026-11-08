@@ -85,19 +85,6 @@ class TestReads:
 
 
 class TestApplications:
-    def test_default_user_is_lowest_id_and_cached(self, fake_supabase):
-        fake_supabase.responder = lambda q: [{'id': 3}]
-        assert db.get_default_user_id() == 3
-        assert db.get_default_user_id() == 3
-        assert len(fake_supabase.executed) == 1
-        [query] = fake_supabase.executed
-        assert calls_named(query, 'order')[0][1] == ('id',)
-
-    def test_default_user_missing_is_an_error(self, fake_supabase):
-        import pytest
-        with pytest.raises(RuntimeError):
-            db.get_default_user_id()
-
     def test_list_embeds_posting_and_sorts_newest_first(self, fake_supabase):
         fake_supabase.responder = lambda q: [
             {'posting_id': 1, 'updated_at': '2026-11-01T00:00:00+00:00'},
@@ -125,3 +112,18 @@ class TestApplications:
         assert db.delete_application(7, 1) is False
         fake_supabase.responder = lambda q: [{'posting_id': 1}]
         assert db.delete_application(7, 1) is True
+
+
+class TestUsers:
+    def test_lookup_by_clerk_id(self, fake_supabase):
+        assert db.get_user_id_by_clerk_id('user_a') is None
+        fake_supabase.responder = lambda q: [{'id': 3}]
+        assert db.get_user_id_by_clerk_id('user_a') == 3
+        query = fake_supabase.executed[-1]
+        assert ('clerk_user_id', 'user_a') in [c[1] for c in calls_named(query, 'eq')]
+
+    def test_create_returns_new_id(self, fake_supabase):
+        fake_supabase.responder = lambda q: [{'id': 9}]
+        assert db.create_user('me@example.com', 'user_a') == 9
+        [query] = fake_supabase.executed
+        assert calls_named(query, 'insert')[0][1][0] == {'email': 'me@example.com', 'clerk_user_id': 'user_a'}

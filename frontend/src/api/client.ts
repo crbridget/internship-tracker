@@ -17,17 +17,22 @@ interface RequestOptions {
     body?: unknown
     signal?: AbortSignal
     timeoutMs?: number
+    /** Clerk session token, for routes that require sign-in. */
+    token?: string | null
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, signal, timeoutMs = 90_000 } = options
+  const { method = 'GET', body, signal, timeoutMs = 90_000, token } = options
 
   const timeout = AbortSignal.timeout(timeoutMs)
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: combined,
   })
