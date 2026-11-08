@@ -6,16 +6,22 @@ interface TrackButtonProps {
   signedIn: boolean
   status: ApplicationStatus | null
   onChange: (status: ApplicationStatus | null) => void
+  label: string
 }
 
-/** The status menu, or, signed out, a look-alike that opens sign-in. */
-export function TrackButton({ signedIn, status, onChange }: TrackButtonProps) {
-  if (signedIn) return <StatusSelect status={status} onChange={onChange} />
-  return (
-    <SignInButton mode="modal">
-      <button type="button" className="status-select untracked" title="Sign in to track roles">
-        + Track
-      </button>
-    </SignInButton>
+/** "+ Track" until the posting is tracked, then its stage tag. Signed out, it opens sign-in. */
+export function TrackButton({ signedIn, status, onChange, label }: TrackButtonProps) {
+  if (signedIn && status) return <StatusSelect status={status} onChange={onChange} label={`Stage for ${label}`} />
+  const button = (
+    <button
+      type="button"
+      className="btn outline small"
+      aria-label={`Track ${label}`}
+      title={signedIn ? undefined : 'Sign in to track roles'}
+      onClick={signedIn ? () => onChange('saved') : undefined}
+    >
+      <span className="bx">+ Track</span>
+    </button>
   )
+  return signedIn ? button : <SignInButton mode="modal">{button}</SignInButton>
 }

@@ -15,6 +15,8 @@ export interface ApplicationsState {
   /** null stops tracking the posting. */
   setStatus: (posting: Posting, status: ApplicationStatus | null) => Promise<void>
   setNotes: (application: Application, notes: string) => Promise<void>
+  /** YYYY-MM-DD, or null to clear it. */
+  setAppliedAt: (application: Application, appliedAt: string | null) => Promise<void>
 }
 
 /** Rows tagged with whose they are, so a sign-out or account switch can't show stale ones. */
@@ -77,8 +79,8 @@ export function useApplications(): ApplicationsState {
       posting_id: posting.id,
       status: change.status,
       notes: change.notes !== undefined ? change.notes : previous?.notes ?? null,
-      // The server decides applied_at; show the old value until it answers.
-      applied_at: previous?.applied_at ?? null,
+      // An explicit date shows at once; otherwise the server decides, so keep the old value until it answers.
+      applied_at: change.applied_at !== undefined ? change.applied_at : previous?.applied_at ?? null,
       created_at: previous?.created_at ?? now,
       updated_at: now,
       posting,
@@ -116,6 +118,9 @@ export function useApplications(): ApplicationsState {
   const setNotes = (application: Application, notes: string) =>
     save(application.posting, { status: application.status, notes: notes.trim() || null })
 
+  const setAppliedAt = (application: Application, appliedAt: string | null) =>
+    save(application.posting, { status: application.status, applied_at: appliedAt })
+
   return {
     signedIn,
     all,
@@ -124,5 +129,6 @@ export function useApplications(): ApplicationsState {
     error: signedIn ? error : '',
     setStatus,
     setNotes,
+    setAppliedAt,
   }
 }

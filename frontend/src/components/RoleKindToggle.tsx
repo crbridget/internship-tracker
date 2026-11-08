@@ -7,27 +7,25 @@ interface RoleKindToggleProps {
 }
 
 const OPTIONS: { kind: RoleKind; label: string }[] = [
-  { kind: 'internship', label: 'Internships' },
+  { kind: 'internship', label: 'Internship' },
   { kind: 'fulltime', label: 'Full-time' },
 ]
 
-/**
- * Which pool to search. role="group" rather than tabs: it filters the list
- * below rather than swapping panels.
- */
+/** Which pool to search. The selected option is underlined in coral; there is no fill. */
 export function RoleKindToggle({ value, onChange, disabled = false }: RoleKindToggleProps) {
   return (
-    <div className="kind-toggle" role="group" aria-label="Filter by role type">
+    <div className="opt-group" role="group" aria-label="Role type">
       {OPTIONS.map(({ kind, label }) => (
         <button
           key={kind}
           type="button"
-          className={kind === value ? 'active' : undefined}
+          className="opt"
           aria-pressed={kind === value}
           disabled={disabled}
+          title={disabled ? 'Wait for the search to finish' : undefined}
           onClick={() => onChange(kind)}
         >
-          {label}
+          <span className="lbl">{label}</span>
         </button>
       ))}
     </div>

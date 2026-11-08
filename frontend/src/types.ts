@@ -54,7 +54,8 @@ export interface AddCompanyError {
   error: string
 }
 
-export type Tab = 'search' | 'applications' | 'manage'
+/** The three views, each with its own hash route (#/roles, #/applications, #/companies). */
+export type Route = 'roles' | 'applications' | 'companies'
 
 /**
  * Which pool to search. 'fulltime' means "not an internship" — there's no
