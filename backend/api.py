@@ -1,12 +1,29 @@
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, make_response, request
 from flask_cors import CORS
+from postgrest.exceptions import APIError
+from pydantic import ValidationError
 from . import db
 from . import boards
-from datetime import datetime
+from . import models
+from datetime import date, datetime
 from . import scoring
+
+FOREIGN_KEY_VIOLATION = '23503'  # Postgres error code
 
 app = Flask(__name__)
 CORS(app) # allow requests from other origins
+
+
+def _body(model):
+    """
+    The request's JSON body validated as `model`, or a 400 with the first
+    problem as {'error': ...}. A missing or non-JSON body is a 400 too.
+    """
+    try:
+        return model.model_validate(request.get_json(silent=True))
+    except ValidationError as err:
+        abort(make_response(jsonify({'error': models.error_message(err)}), 400))
+
 
 @app.route('/postings', methods=['GET'])
 def get_postings():
@@ -20,11 +37,7 @@ def get_companies():
 
 @app.route('/companies', methods=['POST'])
 def post_companies():
-    data = request.get_json() # converts raw json to python dict
-    company_name = data.get('company_name') # gets company name
-
-    if not company_name: # input validation
-        return jsonify({'error': 'company_name is required'}), 400
+    company_name = _body(models.AddCompanyRequest).company_name
 
     # if on greenhouse
     token = boards.normalize(company_name)
@@ -52,11 +65,7 @@ def post_companies():
 
 @app.route('/targets', methods=['POST'])
 def post_targets():
-    data = request.get_json()
-    targets = data.get('targets')
-
-    if not targets or not isinstance(targets, list): # error handling
-        return jsonify({'error': 'targets must be a non-empty list of strings'}), 400
+    targets = _body(models.TargetsRequest).targets
 
     # Score the whole pool so the ranking is honest, but only return the top
     # slice. kind=fulltime scores ~10.6k postings; returning them all is a ~5MB
@@ -107,6 +116,55 @@ def _postings_for_kind(kind, limit=50):
 def get_internships():
     limit = request.args.get('limit', default=50, type=int)
     return jsonify(_postings_for_kind(_requested_kind(), limit))
+
+
+def _current_user_id():
+    """
+    Who's asking. There's no auth yet, so it's always the one user; this is the
+    single place to change once there is.
+    """
+    return db.get_default_user_id()
+
+
+@app.route('/applications', methods=['GET'])
+def get_applications():
+    return jsonify(db.get_applications(_current_user_id()))
+
+
+@app.route('/applications/<int:posting_id>', methods=['PUT'])
+def put_application(posting_id):
+    """Start tracking a posting, or change its status/notes."""
+    update = _body(models.ApplicationUpdate)
+    user_id = _current_user_id()
+    existing = db.get_application(user_id, posting_id)
+
+    row = {
+        'user_id': user_id,
+        'posting_id': posting_id,
+        **update.model_dump(mode='json', exclude_unset=True),
+    }
+    # Stamp the date the first time it moves past 'saved'. Later status changes
+    # (interviewing, rejected, ...) keep the original date.
+    already_dated = existing is not None and existing['applied_at'] is not None
+    if 'applied_at' not in row and update.status != 'saved' and not already_dated:
+        row['applied_at'] = date.today().isoformat()
+
+    try:
+        stored = db.upsert_application(row)
+    except APIError as err:
+        if err.code == FOREIGN_KEY_VIOLATION:
+            return jsonify({'error': f'posting {posting_id} does not exist'}), 404
+        raise
+
+    return jsonify(stored), 200 if existing else 201
+
+
+@app.route('/applications/<int:posting_id>', methods=['DELETE'])
+def delete_application(posting_id):
+    """Stop tracking a posting."""
+    if not db.delete_application(_current_user_id(), posting_id):
+        return jsonify({'error': f'posting {posting_id} is not tracked'}), 404
+    return '', 204
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

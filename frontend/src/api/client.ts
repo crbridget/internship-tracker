@@ -13,7 +13,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions { 
-    method?: 'GET' | 'POST'
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     body?: unknown
     signal?: AbortSignal
     timeoutMs?: number
@@ -33,6 +33,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   })
 
   if (!res.ok) throw new ApiError(res.status, await readErrorMessage(res, method, path))
+
+  // 204 No Content (DELETE) has no body to parse.
+  if (res.status === 204) return undefined as T
 
   return (await res.json()) as T
 }

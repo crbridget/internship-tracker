@@ -263,10 +263,7 @@ h2 {
 }
 
 .job-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -283,9 +280,37 @@ h2 {
   transform: translateY(-1px);
 }
 
-.job-card:focus-visible {
+.job-card:has(.job-link:focus-visible) {
   outline: 2px solid var(--brown);
   outline-offset: 2px;
+}
+
+.job-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Stretched link: the title's overlay makes the whole card clickable. */
+.job-link {
+  display: block;
+  text-decoration: none;
+  outline: none;
+}
+
+.job-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+/* Controls sit above the overlay so they get their own clicks. */
+.job-actions,
+.job-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .job-main {
@@ -317,6 +342,90 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.job-tag.closed {
+  font-weight: 700;
+  color: var(--error);
+}
+
+/* application tracking */
+
+.status-select {
+  appearance: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brown);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.status-select:focus-visible {
+  outline: 2px solid var(--brown);
+  outline-offset: 1px;
+}
+
+.status-select.untracked {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+}
+
+.status-select.untracked:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.status-select.saved { background: var(--surface-hover); border-color: var(--border-strong); }
+.status-select.applied { background: var(--accent-soft); color: var(--accent-text); }
+.status-select.interviewing { background: var(--yellow); }
+.status-select.offer { background: var(--success-soft); color: var(--success); }
+.status-select.rejected { background: var(--error-soft); color: var(--error); }
+
+.status-filter {
+  flex-wrap: wrap;
+}
+
+.filter-count {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.job-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.application-date {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.application-notes {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: #fffdf6;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.application-notes:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .job-side {

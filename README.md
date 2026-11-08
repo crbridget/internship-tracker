@@ -128,6 +128,13 @@ Limitations:
 | GET | `/internships?kind=internship&limit=50` | open postings of one kind (`internship` or `fulltime`), newest first |
 | GET | `/postings` | **all** open postings — ~11.8k rows, ~5MB. Unused by the frontend |
 | POST | `/targets?kind=internship&limit=200` | `{targets: string[]}` → postings scored by title similarity, descending |
+| GET | `/applications` | tracked postings with status, notes, `applied_at`, and the posting embedded, most recently updated first |
+| PUT | `/applications/<posting_id>` | `{status, notes?, applied_at?}` → tracks or updates. Status is `saved`, `applied`, `interviewing`, `offer` or `rejected`. `applied_at` is set to today the first time status leaves `saved`. Omitted fields are kept, `null` clears. 201 on create, 404 for an unknown posting |
+| DELETE | `/applications/<posting_id>` | stops tracking. 204, or 404 if not tracked |
+
+There's no auth: the application routes act as the single row in `users`
+(see `_current_user_id` in `api.py`), so anyone with the API URL can read and
+change them.
 
 ## Layout
 
@@ -136,6 +143,7 @@ backend/
   api.py                 Flask routes
   poller.py              board polling, upserts, closure detection
   db.py                  every Supabase query
+  models.py              pydantic request bodies
   scoring.py             MiniLM embeddings + cosine similarity (titles)
   match_resume.py        CLI: resume vs. job descriptions
   text.py                description HTML -> plain text, hashing (no heavy imports)
@@ -151,8 +159,8 @@ db/
 
 frontend/src/
   App.tsx                tab state, composes features
-  features/              FindRoles, AddCompanies
-  hooks/                 useInternshipSearch, useCompanies — state lives here
+  features/              FindRoles, Applications, AddCompanies
+  hooks/                 useInternshipSearch, useApplications, useCompanies — state lives here
   components/            presentational only
   api/client.ts          transport: base URL, ApiError, request<T>
   api/index.ts           the four endpoint functions

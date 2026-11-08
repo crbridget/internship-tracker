@@ -3,14 +3,17 @@ import { JobCard } from '../components/JobCard'
 import { LoadingMessage } from '../components/LoadingMessage'
 import { RoleKindToggle } from '../components/RoleKindToggle'
 import { SearchBar, SearchDivider, SearchField } from '../components/SearchBar'
+import { StatusSelect } from '../components/StatusSelect'
+import type { ApplicationsState } from '../hooks/useApplications'
 import type { InternshipSearch } from '../hooks/useInternshipSearch'
 
 interface FindRolesProps {
   search: InternshipSearch
   companyNames: Map<number, string>
+  applications: ApplicationsState
 }
 
-export function FindRoles({ search, companyNames }: FindRolesProps) {
+export function FindRoles({ search, companyNames, applications }: FindRolesProps) {
   const {
     kind,
     setKind,
@@ -61,6 +64,7 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
       </div>
 
       {error && <div className="message error">{error}</div>}
+      {applications.error && <div className="message error">{applications.error}</div>}
 
       {!busy && (
         <div className="results-count">
@@ -81,6 +85,12 @@ export function FindRoles({ search, companyNames }: FindRolesProps) {
               job={job}
               companyName={companyNames.get(job.company_id)}
               score={searched ? job.relevance_score ?? null : null}
+              actions={
+                <StatusSelect
+                  status={applications.byPostingId.get(job.id)?.status ?? null}
+                  onChange={status => applications.setStatus(job, status)}
+                />
+              }
             />
           ))}
         </div>

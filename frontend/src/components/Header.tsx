@@ -14,6 +14,9 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
         <button onClick={() => onTabChange('search')} disabled={activeTab === 'search'}>
           Find Roles
         </button>
+        <button onClick={() => onTabChange('applications')} disabled={activeTab === 'applications'}>
+          My Applications
+        </button>
         <button onClick={() => onTabChange('manage')} disabled={activeTab === 'manage'}>
           Add Companies
         </button>

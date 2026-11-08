@@ -1,5 +1,14 @@
 import { request } from './client'
-import type { AddCompanySuccess, Company, Posting, RoleKind, ScoredPosting } from '../types'
+import type {
+  AddCompanySuccess,
+  Application,
+  ApplicationRecord,
+  ApplicationUpdate,
+  Company,
+  Posting,
+  RoleKind,
+  ScoredPosting,
+} from '../types'
 
 export { ApiError, API_BASE } from './client'
 
@@ -40,4 +49,30 @@ export function scorePostings(
     body: { targets },
     signal,
   })
+}
+
+
+// GET /applications — every tracked posting, most recently updated first
+export function getApplications(signal?: AbortSignal): Promise<Application[]> {
+  return request<Application[]>('/applications', { signal })
+}
+
+
+// PUT /applications/:postingId — track a posting, or change its status/notes
+export function saveApplication(
+  postingId: number,
+  update: ApplicationUpdate,
+  signal?: AbortSignal,
+): Promise<ApplicationRecord> {
+  return request<ApplicationRecord>(`/applications/${postingId}`, {
+    method: 'PUT',
+    body: update,
+    signal,
+  })
+}
+
+
+// DELETE /applications/:postingId — stop tracking a posting
+export function deleteApplication(postingId: number, signal?: AbortSignal): Promise<void> {
+  return request<void>(`/applications/${postingId}`, { method: 'DELETE', signal })
 }

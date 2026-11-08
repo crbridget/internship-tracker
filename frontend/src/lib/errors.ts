@@ -1,6 +1,6 @@
 import { ApiError } from '../api'
 
-export const OFFLINE_MESSAGE = 'Could not reach the server. Is app.py running?'
+export const OFFLINE_MESSAGE = 'Could not reach the server. Is the backend running? (python -m backend.api)'
 
 // abort error
 export const isAbort = (err: unknown): boolean =>

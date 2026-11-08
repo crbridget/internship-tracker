@@ -62,6 +62,8 @@ def fake_supabase(monkeypatch):
     """Every test gets a recording fake; nothing talks to a real database."""
     client = FakeSupabase()
     monkeypatch.setattr(db, 'supabase', client)
+    # Cached across calls in production; a test's fake must not see another's.
+    db.get_default_user_id.cache_clear()
     return client
 
 

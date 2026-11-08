@@ -1,8 +1,9 @@
 
-from supabase import create_client 
-import os 
+from supabase import create_client
+import functools
+import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -217,6 +218,70 @@ def get_open_internship_postings():
         or_filter=_INTERNSHIP_TITLE_FILTER,
         columns=POSTING_COLUMNS,
     )
+
+
+# ---- users -----------------------------------------------------------------
+
+@functools.cache # first time a function runs, saves the result
+def get_default_user_id():
+    """
+    The id of the app's single user, until auth exists to say who's asking.
+
+    Cached: it can't change while the process runs, and every /applications
+    request would otherwise spend a round trip on it.
+    """
+    rows = supabase.table('users').select('id').order('id').limit(1).execute().data
+    if not rows:
+        raise RuntimeError('No row in users. Run db/migrations/001_multi_user.sql.')
+    return rows[0]['id']
+
+
+# ---- applications ----------------------------------------------------------
+
+APPLICATION_COLUMNS = 'posting_id, status, notes, applied_at, created_at, updated_at'
+
+
+def get_applications(user_id):
+    """
+    Every posting this user is tracking, with the posting embedded under
+    'posting', most recently updated first. Includes closed postings.
+    """
+    rows = _fetch_all_rows(
+        'applications',
+        {'user_id': user_id},
+        columns=f'{APPLICATION_COLUMNS}, posting:job_postings({POSTING_COLUMNS})',
+    )
+    rows.sort(key=lambda r: r['updated_at'], reverse=True)
+    return rows
+
+
+def get_application(user_id, posting_id):
+    """One application row, or None if the posting isn't tracked."""
+    rows = (supabase.table('applications')
+            .select(APPLICATION_COLUMNS)
+            .eq('user_id', user_id)
+            .eq('posting_id', posting_id)
+            .execute().data)
+    return rows[0] if rows else None
+
+
+def upsert_application(row):
+    """Insert or update one application, returning it as stored."""
+    row = {**row, 'updated_at': datetime.now(timezone.utc).isoformat()}
+    stored = (supabase.table('applications')
+              .upsert(row, on_conflict='user_id,posting_id')
+              .execute().data)
+    return {key: stored[0][key] for key in APPLICATION_COLUMNS.split(', ')}
+
+
+def delete_application(user_id, posting_id):
+    """Stop tracking a posting. Returns whether a row existed."""
+    deleted = (supabase.table('applications')
+               .delete()
+               .eq('user_id', user_id)
+               .eq('posting_id', posting_id)
+               .execute().data)
+    return bool(deleted)
 
 
 

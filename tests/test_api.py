@@ -45,10 +45,27 @@ class TestInternships:
 
 
 class TestTargets:
-    @pytest.mark.parametrize('body', [{}, {'targets': []}, {'targets': 'swe'}])
-    def test_rejects_missing_or_non_list_targets(self, client, body):
+    @pytest.mark.parametrize('body', [
+        None,
+        {},
+        {'targets': []},
+        {'targets': 'swe'},
+        {'targets': [1, None]},     # passed the old isinstance(list) check
+        {'targets': ['data', '  ']},
+        ['data'],                   # used to 500: list has no .get
+    ])
+    def test_rejects_invalid_targets(self, client, body):
         response = client.post('/targets', json=body)
         assert response.status_code == 400
+        assert isinstance(response.get_json()['error'], str)
+
+    def test_strips_whitespace_from_targets(self, client, api, monkeypatch):
+        seen = []
+        original = api.scoring_stub.score_postings
+        monkeypatch.setattr(api.scoring_stub, 'score_postings',
+                            lambda targets, postings: seen.append(targets) or original(targets, postings))
+        client.post('/targets', json={'targets': ['  data  ']})
+        assert seen == [['data']]
 
     def test_sorted_by_score_descending(self, client, api):
         api.scoring_stub.scores = {'Software Intern': 0.2, 'Data Co-op': 0.9, 'ML Intern': 0.5}
@@ -69,8 +86,19 @@ class TestTargets:
 
 
 class TestAddCompany:
-    def test_requires_company_name(self, client):
-        assert client.post('/companies', json={}).status_code == 400
+    @pytest.mark.parametrize('body', [None, {}, {'company_name': '   '}, {'company_name': 42}])
+    def test_rejects_invalid_company_name(self, client, api, monkeypatch, body):
+        monkeypatch.setattr(api.boards, 'check_greenhouse', lambda token: pytest.fail('should not call'))
+        response = client.post('/companies', json=body)
+        assert response.status_code == 400
+        assert isinstance(response.get_json()['error'], str)
+
+    def test_company_name_is_stripped(self, client, api, monkeypatch):
+        upserted = []
+        monkeypatch.setattr(api.boards, 'check_greenhouse', lambda token: [{'id': 1}])
+        monkeypatch.setattr(api.db, 'upsert_company', upserted.append)
+        client.post('/companies', json={'company_name': '  Big Co  '})
+        assert upserted[0]['company_name'] == 'Big Co'
 
     def test_found_on_greenhouse(self, client, api, monkeypatch):
         upserted = []
@@ -100,3 +128,86 @@ class TestAddCompany:
         monkeypatch.setattr(api.db, 'upsert_company', lambda row: pytest.fail('should not insert'))
 
         assert client.post('/companies', json={'company_name': 'Nope'}).status_code == 404
+
+
+class TestApplications:
+    USER = 7
+
+    @pytest.fixture
+    def store(self, api, monkeypatch):
+        """
+        In-memory stand-in for the applications table, keyed by posting_id.
+        Upserts merge like PostgREST does: only the columns sent are changed.
+        """
+        rows = {}
+        monkeypatch.setattr(api.db, 'get_default_user_id', lambda: self.USER)
+        monkeypatch.setattr(api.db, 'get_application',
+                            lambda user_id, pid: rows.get(pid))
+
+        def upsert(row):
+            assert row['user_id'] == self.USER
+            merged = {'notes': None, 'applied_at': None, **rows.get(row['posting_id'], {}), **row}
+            rows[row['posting_id']] = merged
+            return merged
+
+        monkeypatch.setattr(api.db, 'upsert_application', upsert)
+        monkeypatch.setattr(api.db, 'delete_application',
+                            lambda user_id, pid: rows.pop(pid, None) is not None)
+        return rows
+
+    def test_saving_does_not_set_applied_at(self, client, store):
+        response = client.put('/applications/1', json={'status': 'saved'})
+        assert response.status_code == 201
+        assert response.get_json()['applied_at'] is None
+
+    def test_applying_stamps_today(self, client, store, api):
+        client.put('/applications/1', json={'status': 'saved'})
+        response = client.put('/applications/1', json={'status': 'applied'})
+        assert response.status_code == 200
+        assert response.get_json()['applied_at'] == api.date.today().isoformat()
+
+    def test_later_status_keeps_original_applied_at(self, client, store):
+        client.put('/applications/1', json={'status': 'applied', 'applied_at': '2026-10-01'})
+        response = client.put('/applications/1', json={'status': 'interviewing'})
+        assert response.get_json()['applied_at'] == '2026-10-01'
+
+    def test_omitted_notes_are_kept_and_null_clears_them(self, client, store):
+        client.put('/applications/1', json={'status': 'saved', 'notes': 'referral from Sam'})
+        kept = client.put('/applications/1', json={'status': 'applied'}).get_json()
+        assert kept['notes'] == 'referral from Sam'
+        cleared = client.put('/applications/1', json={'status': 'applied', 'notes': None}).get_json()
+        assert cleared['notes'] is None
+
+    @pytest.mark.parametrize('body', [
+        None,
+        {},
+        {'status': 'ghosted'},
+        {'status': 'saved', 'applied_at': 'last tuesday'},
+        {'status': 'saved', 'user_id': 99},  # can't write someone else's row
+    ])
+    def test_rejects_invalid_bodies(self, client, store, body):
+        response = client.put('/applications/1', json=body)
+        assert response.status_code == 400
+        assert isinstance(response.get_json()['error'], str)
+        assert store == {}
+
+    def test_unknown_posting_is_404(self, client, store, api, monkeypatch):
+        from postgrest.exceptions import APIError
+
+        def violate(row):
+            raise APIError({'code': '23503', 'message': 'violates foreign key'})
+
+        monkeypatch.setattr(api.db, 'upsert_application', violate)
+        assert client.put('/applications/999', json={'status': 'saved'}).status_code == 404
+
+    def test_delete(self, client, store):
+        client.put('/applications/1', json={'status': 'saved'})
+        assert client.delete('/applications/1').status_code == 204
+        assert store == {}
+        assert client.delete('/applications/1').status_code == 404
+
+    def test_list_is_scoped_to_current_user(self, client, store, api, monkeypatch):
+        seen = []
+        monkeypatch.setattr(api.db, 'get_applications', lambda user_id: seen.append(user_id) or [])
+        assert client.get('/applications').get_json() == []
+        assert seen == [self.USER]

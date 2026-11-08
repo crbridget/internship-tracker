@@ -1,3 +1,6 @@
+-- Current schema, after migrations 001–005. Reference only: change the
+-- database through a new file in migrations/, then mirror it here.
+
 CREATE TABLE public.companies (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   company_name character varying NOT NULL UNIQUE,
@@ -12,7 +15,7 @@ CREATE TABLE public.companies (
 CREATE TABLE public.job_postings (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   company_id bigint NOT NULL,
-  external_job_id character varying NOT NULL UNIQUE,
+  external_job_id character varying NOT NULL,
   title character varying NOT NULL,
   location character varying,
   description text,
@@ -23,8 +26,44 @@ CREATE TABLE public.job_postings (
   first_seen_at timestamp without time zone NOT NULL,
   last_seen_at timestamp without time zone NOT NULL,
   status character varying NOT NULL,
-  relevance_score double precision,
-  user_label character varying,
   CONSTRAINT job_postings_pkey PRIMARY KEY (id),
+  CONSTRAINT job_postings_company_external_unique UNIQUE (company_id, external_job_id),
   CONSTRAINT job_posting_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id)
+);
+
+CREATE TABLE public.users (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  auth_user_id uuid UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.user_companies (
+  user_id bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  company_id bigint NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, company_id)
+);
+CREATE TABLE public.user_targets (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  role text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, role)
+);
+CREATE TABLE public.notifications_sent (
+  user_id bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  posting_id bigint NOT NULL REFERENCES public.job_postings(id) ON DELETE CASCADE,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, posting_id)
+);
+CREATE TABLE public.applications (
+  user_id bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  posting_id bigint NOT NULL REFERENCES public.job_postings(id) ON DELETE CASCADE,
+  status text NOT NULL
+    CHECK (status IN ('saved', 'applied', 'interviewing', 'offer', 'rejected')),
+  notes text,
+  applied_at date,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, posting_id)
 );

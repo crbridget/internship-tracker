@@ -1,4 +1,4 @@
-# Check if the company entered uses greenhouse or lever
+"""Makes API calls to greenhouse and lever to check if company has job postings."""
 
 import requests
 from datetime import datetime

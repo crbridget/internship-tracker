@@ -82,3 +82,46 @@ class TestReads:
         assert len(rows) == 1001
         ranges = [calls_named(q, 'range')[0][1] for q in fake_supabase.executed]
         assert ranges == [(0, 999), (1000, 1999)]
+
+
+class TestApplications:
+    def test_default_user_is_lowest_id_and_cached(self, fake_supabase):
+        fake_supabase.responder = lambda q: [{'id': 3}]
+        assert db.get_default_user_id() == 3
+        assert db.get_default_user_id() == 3
+        assert len(fake_supabase.executed) == 1
+        [query] = fake_supabase.executed
+        assert calls_named(query, 'order')[0][1] == ('id',)
+
+    def test_default_user_missing_is_an_error(self, fake_supabase):
+        import pytest
+        with pytest.raises(RuntimeError):
+            db.get_default_user_id()
+
+    def test_list_embeds_posting_and_sorts_newest_first(self, fake_supabase):
+        fake_supabase.responder = lambda q: [
+            {'posting_id': 1, 'updated_at': '2026-11-01T00:00:00+00:00'},
+            {'posting_id': 2, 'updated_at': '2026-11-05T00:00:00+00:00'},
+        ]
+        assert [r['posting_id'] for r in db.get_applications(7)] == [2, 1]
+        [query] = fake_supabase.executed
+        assert 'posting:job_postings(' in calls_named(query, 'select')[0][1][0]
+        assert ('user_id', 7) in [c[1] for c in calls_named(query, 'eq')]
+
+    def test_upsert_stamps_updated_at_and_keys_on_user_and_posting(self, fake_supabase):
+        def respond(query):
+            row = calls_named(query, 'upsert')[0][1][0]
+            return [{**row, 'notes': None, 'applied_at': None, 'created_at': 't'}]
+
+        fake_supabase.responder = respond
+        stored = db.upsert_application({'user_id': 7, 'posting_id': 1, 'status': 'saved'})
+
+        [query] = fake_supabase.executed
+        assert calls_named(query, 'upsert')[0][2] == {'on_conflict': 'user_id,posting_id'}
+        assert stored['updated_at']
+        assert 'user_id' not in stored  # response shape matches GET /applications rows
+
+    def test_delete_reports_whether_a_row_existed(self, fake_supabase):
+        assert db.delete_application(7, 1) is False
+        fake_supabase.responder = lambda q: [{'posting_id': 1}]
+        assert db.delete_application(7, 1) is True
